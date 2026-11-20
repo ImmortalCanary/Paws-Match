@@ -7,7 +7,7 @@ INSERT INTO tierart (id, name) VALUES
 
 INSERT INTO charakter (id, name) VALUES
     (1, 'ruhig'), (2, 'verspielt'), (3, 'schuechtern'), (4, 'kontaktfreudig'),
-    (5, 'eigenstaendig'), (6, 'aktiv'), (8, 'sozial');
+    (5, 'eigenstaendig'), (6, 'aktiv'), (7, 'sozial');
 
 INSERT INTO beduerfnis (id, name) VALUES
     (1, 'taegliche Medikamentengabe'), (2, 'gesicherter Balkon'),

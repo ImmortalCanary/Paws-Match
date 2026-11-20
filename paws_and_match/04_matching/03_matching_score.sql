@@ -60,6 +60,10 @@ WITH gewichtung AS (
     FROM matching_kriterien k
     LEFT JOIN matching_gewichtung g ON g.kriterium = k.kriterium
     GROUP BY k.tier_id, k.interessent_id
+), basispunkte AS (
+    SELECT p.tier_id, p.interessent_id, p.punkte, p.erfasstes_gewicht,
+           70.0 + p.punkte AS skalierte_punkte
+    FROM punkte p
 )
 SELECT
     d.tier_id, d.interessent_id, d.tiername, d.pseudonym, d.tierstatus,
@@ -69,10 +73,10 @@ SELECT
     CASE WHEN d.eignung = 'ausgeschlossen' THEN 0
          WHEN d.eignung = 'pruefung_offen' THEN NULL
          WHEN g.anzahl_gewichte <> 9 OR g.gesamtgewicht IS NULL OR g.gesamtgewicht <= 0 THEN NULL
-         ELSE ROUND(100.0 * a.punkte / NULLIF(a.erfasstes_gewicht, 0), 1) END AS match_prozent,
+         ELSE ROUND(100.0 * b.skalierte_punkte / (70.0 + g.gesamtgewicht), 1) END AS match_prozent,
     CASE WHEN d.eignung = 'geeignet' AND g.anzahl_gewichte = 9 AND g.gesamtgewicht > 0
-         THEN ROUND(100.0 * a.erfasstes_gewicht / g.gesamtgewicht, 1)
+         THEN ROUND(100.0 * b.erfasstes_gewicht / g.gesamtgewicht, 1)
          ELSE NULL END AS datenabdeckung_prozent
 FROM matching_entscheidung d
-JOIN punkte a ON a.tier_id = d.tier_id AND a.interessent_id = d.interessent_id
+JOIN basispunkte b ON b.tier_id = d.tier_id AND b.interessent_id = d.interessent_id
 CROSS JOIN gewichtung g;
