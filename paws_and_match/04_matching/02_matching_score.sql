@@ -44,8 +44,8 @@ WITH basis AS (
         EXISTS(SELECT 1 FROM interessent_standort isp
                WHERE isp.interessent_id = i.id AND isp.standort_id = t.standort_id) AS wunschstandort,
         EXISTS(SELECT 1 FROM interessent_standort isp WHERE isp.interessent_id = i.id) AS standortwunsch_erfasst,
-        NULLIF(TRIM(i.bezirk), '') AS interessent_bezirk,
-        NULLIF(TRIM(s.bezirk), '') AS standort_bezirk
+        i.bezirk_id AS interessent_bezirk,
+        s.bezirk_id AS standort_bezirk
     FROM tier t
     CROSS JOIN interessent i
     JOIN standort s ON s.id = t.standort_id

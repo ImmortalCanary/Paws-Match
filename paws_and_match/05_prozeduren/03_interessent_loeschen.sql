@@ -49,7 +49,7 @@ BEGIN
         SET aktiv = 0,
             pseudonym = CONCAT('Anonymisiert ', p_id),
             email = CONCAT('anonymisiert-', p_id, '@paws-match.invalid'),
-            bezirk = 'anonymisiert',
+            bezirk_id = NULL,
             wohnflaeche = NULL, garten = NULL, etage = NULL, aufzug = NULL,
             kinder = NULL, hund_vorhanden = NULL, katze_vorhanden = NULL,
             zeit_stunden = NULL, allein_stunden = NULL, erfahrung = NULL,

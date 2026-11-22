@@ -10,12 +10,13 @@ INSERT INTO tierheim (id, name, email) VALUES
     (4, 'Demo-Tierschutz 4', 'heim4@example.org'),
     (5, 'Demo-Tierschutz 5', 'heim5@example.org');
 
-INSERT INTO standort (id, tierheim_id, name, bezirk, ort, kapazitaet) VALUES
-    (1, 1, 'Demo-Standort Mitte', 'Mitte', 'Berlin', 30),
-    (2, 2, 'Demo-Standort Pankow', 'Pankow', 'Berlin', 30),
-    (3, 3, 'Demo-Standort Spandau', 'Spandau', 'Berlin', 30),
-    (4, 4, 'Demo-Standort Neukoelln', 'Neukoelln', 'Berlin', 30),
-    (5, 5, 'Demo-Standort Lichtenberg', 'Lichtenberg', 'Berlin', 30);
+-- Bezirke werden wie bei einem Import aus Freitext erkannt (verschiedene Schreibweisen gewollt).
+INSERT INTO standort (id, tierheim_id, name, bezirk_id, kapazitaet) VALUES
+    (1, 1, 'Demo-Standort Mitte', fn_bezirk_id_pflicht('Mitte'), 30),
+    (2, 2, 'Demo-Standort Pankow', fn_bezirk_id_pflicht('Pankow'), 30),
+    (3, 3, 'Demo-Standort Spandau', fn_bezirk_id_pflicht('Spandau'), 30),
+    (4, 4, 'Demo-Standort Neukoelln', fn_bezirk_id_pflicht('Neukoelln'), 30),
+    (5, 5, 'Demo-Standort Lichtenberg', fn_bezirk_id_pflicht('Lichtenberg'), 30);
 
 INSERT INTO mitarbeiter (id, standort_id, name, email) VALUES
     (1, 1, 'Demo-Team 1', 'team1@example.org'),
@@ -25,30 +26,30 @@ INSERT INTO mitarbeiter (id, standort_id, name, email) VALUES
     (5, 5, 'Demo-Team 5', 'team5@example.org');
 
 INSERT INTO interessent
-(id, pseudonym, email, bezirk, wohnflaeche, garten, etage, aufzug, kinder,
+(id, pseudonym, email, bezirk_id, wohnflaeche, garten, etage, aufzug, kinder,
  hund_vorhanden, katze_vorhanden, zeit_stunden, allein_stunden, erfahrung,
  budget, medizin_bereit, aktivitaet)
 VALUES
-(1, 'Profil 1', 'profil1@example.org', 'Mitte', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 1),
-(2, 'Profil 2', 'profil2@example.org', 'Pankow', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 2),
-(3, 'Profil 3', 'profil3@example.org', 'Spandau', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 3),
-(4, 'Profil 4', 'profil4@example.org', 'Neukoelln', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 4),
-(5, 'Profil 5', 'profil5@example.org', 'Lichtenberg', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 5),
-(6, 'Profil 6', 'profil6@example.org', 'Mitte', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 1),
-(7, 'Profil 7', 'profil7@example.org', 'Pankow', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 2),
-(8, 'Profil 8', 'profil8@example.org', 'Spandau', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 3),
-(9, 'Profil 9', 'profil9@example.org', 'Neukoelln', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 4),
-(10, 'Profil 10', 'profil10@example.org', 'Lichtenberg', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 5),
-(11, 'Profil 11', 'profil11@example.org', 'Mitte', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 1),
-(12, 'Profil 12', 'profil12@example.org', 'Pankow', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 2),
-(13, 'Profil 13', 'profil13@example.org', 'Spandau', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 3),
-(14, 'Profil 14', 'profil14@example.org', 'Neukoelln', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 4),
-(15, 'Profil 15', 'profil15@example.org', 'Lichtenberg', 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 5),
-(16, 'Profil 16', 'profil16@example.org', 'Mitte', 60, 0, 3, 1, 0, 0, 1, 4, 6, 2, 250, 0, 2),
-(17, 'Profil 17', 'profil17@example.org', 'Pankow', 100, 1, 0, 0, 1, 1, 0, 8, 3, 4, 500, 1, 4),
-(18, 'Profil 18', 'profil18@example.org', 'Spandau', 75, 0, 2, 1, 0, 0, 0, 5, 8, 1, 300, 1, 3),
-(19, 'Profil 19', 'profil19@example.org', 'Neukoelln', 90, 1, 0, 0, 0, 0, 1, 7, 4, 3, 400, 1, 5),
-(20, 'Profil 20', 'profil20@example.org', 'Lichtenberg', 55, 0, 4, 0, 0, 1, 1, 3, 10, 0, 200, 0, 1);
+(1, 'Profil 1', 'profil1@example.org', fn_bezirk_id_pflicht('Mitte'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 1),
+(2, 'Profil 2', 'profil2@example.org', fn_bezirk_id_pflicht('Pankow'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 2),
+(3, 'Profil 3', 'profil3@example.org', fn_bezirk_id_pflicht('Spandau'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 3),
+(4, 'Profil 4', 'profil4@example.org', fn_bezirk_id_pflicht('Neukoelln'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 4),
+(5, 'Profil 5', 'profil5@example.org', fn_bezirk_id_pflicht('Lichtenberg'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 5),
+(6, 'Profil 6', 'profil6@example.org', fn_bezirk_id_pflicht('Berlin-Mitte'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 1),
+(7, 'Profil 7', 'profil7@example.org', fn_bezirk_id_pflicht('Prenzlauer Berg'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 2),
+(8, 'Profil 8', 'profil8@example.org', fn_bezirk_id_pflicht('SPANDAU'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 3),
+(9, 'Profil 9', 'profil9@example.org', fn_bezirk_id_pflicht('neukolln'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 4),
+(10, 'Profil 10', 'profil10@example.org', fn_bezirk_id_pflicht('Lichtenberg (Berlin)'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 5),
+(11, 'Profil 11', 'profil11@example.org', fn_bezirk_id_pflicht('Wedding'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 1),
+(12, 'Profil 12', 'profil12@example.org', fn_bezirk_id_pflicht('Weissensee'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 2),
+(13, 'Profil 13', 'profil13@example.org', fn_bezirk_id_pflicht('Spandua'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 3),
+(14, 'Profil 14', 'profil14@example.org', fn_bezirk_id_pflicht('Bezirk Neukoelln'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 4),
+(15, 'Profil 15', 'profil15@example.org', fn_bezirk_id_pflicht('Karlshorst'), 80, 1, 0, 0, 0, 0, 0, 6, 2, 4, 400, 1, 5),
+(16, 'Profil 16', 'profil16@example.org', fn_bezirk_id_pflicht('Moabit'), 60, 0, 3, 1, 0, 0, 1, 4, 6, 2, 250, 0, 2),
+(17, 'Profil 17', 'profil17@example.org', fn_bezirk_id_pflicht('Pankow'), 100, 1, 0, 0, 1, 1, 0, 8, 3, 4, 500, 1, 4),
+(18, 'Profil 18', 'profil18@example.org', fn_bezirk_id_pflicht('Spandau'), 75, 0, 2, 1, 0, 0, 0, 5, 8, 1, 300, 1, 3),
+(19, 'Profil 19', 'profil19@example.org', fn_bezirk_id_pflicht('Neukoeln'), 90, 1, 0, 0, 0, 0, 1, 7, 4, 3, 400, 1, 5),
+(20, 'Profil 20', 'profil20@example.org', fn_bezirk_id_pflicht('Lichtenberg'), 55, 0, 4, 0, 0, 1, 1, 3, 10, 0, 200, 0, 1);
 
 INSERT INTO interessent_tierart (interessent_id, tierart_id) VALUES
     (1, 1), (2, 2), (3, 3), (4, 4), (5, 5),

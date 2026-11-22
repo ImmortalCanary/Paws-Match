@@ -10,9 +10,9 @@ SELECT
     ta.name AS tierart,
     st.id AS standort_id,
     st.name AS standort,
-    st.bezirk AS standort_bezirk,
+    sb.name AS standort_bezirk,
     s.pseudonym,
-    i.bezirk AS interessenten_bezirk,
+    ib.name AS interessenten_bezirk,
     s.eignung,
     s.tierstatus,
     s.match_prozent,
@@ -22,7 +22,9 @@ FROM matching_score s
 JOIN tier t ON t.id = s.tier_id
 JOIN tierart ta ON ta.id = t.tierart_id
 JOIN standort st ON st.id = t.standort_id
+JOIN bezirk sb ON sb.id = st.bezirk_id
 JOIN interessent i ON i.id = s.interessent_id
+LEFT JOIN bezirk ib ON ib.id = i.bezirk_id
 WHERE s.eignung = 'geeignet'
   AND s.tierstatus = 'verfuegbar'
   AND s.interessent_aktiv = 1

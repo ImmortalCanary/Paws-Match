@@ -46,7 +46,7 @@ transparentes Matching hilft Mitarbeitenden, gezielt die richtigen Menschen anzu
 - **Erklärbar:** Jede Ablehnung nennt ihren Grund.
 - **Sicher vor Fehlentscheidungen:** Fehlen Angaben, wird nicht geraten, sondern „Prüfung offen“ gemeldet.
 - **Alles in SQL:** Tabellen, Views, Prozeduren und Trigger – keine zusätzliche Anwendung nötig.
-- **Reproduzierbar und getestet:** Eine Installationsreihenfolge, 73 automatische Tests.
+- **Reproduzierbar und getestet:** Eine Installationsreihenfolge, 123 automatische Tests.
 
 ---
 
@@ -54,16 +54,18 @@ transparentes Matching hilft Mitarbeitenden, gezielt die richtigen Menschen anzu
 
 | Kennzahl | Wert |
 |---|---|
-| Tabellen | **28** |
-| Views (Sichten) | **4** |
+| Tabellen | **32** |
+| Views (Sichten) | **6** |
 | Gespeicherte Prozeduren | **4** |
-| Trigger | **2** |
+| Gespeicherte Funktionen | **4** |
+| Trigger | **6** |
 | Harte Kriterien | **19** |
 | Gewichtete Score-Kategorien | **9** |
+| Orte | Berlin mit 12 Bezirken und 96 Ortsteilen (vorbereitet für ganz Deutschland) |
 | Demo: Tiere / Interessenten / Tierheime | 20 / 20 / 5 |
 | Demo: geprüfte Tier-Mensch-Paare | 400 |
 | Demo: Vorschläge | 42 (Score 68,3 – 96,0 %, Ø 91,4 %) |
-| Automatische Tests | 73 (30 Matching + 43 Prozesse), alle bestanden |
+| Automatische Tests | 123 (30 Matching + 43 Prozesse + 50 Orte), alle bestanden |
 | Getestet auf | MySQL Community Server 8.4.13 |
 
 ---
@@ -75,7 +77,7 @@ README.md                    <- dieses Dokument
 context/AGENTS.md            <- Entwicklungshinweise (Konventionen, Änderungsprotokoll)
 paws_and_match/
   README.md                  <- Installationsreihenfolge (Kurzfassung)
-  01_grundlage/              <- Datenbank, Basistabellen, Trigger, Vermittlung, Stammdaten
+  01_grundlage/              <- Datenbank, Orte, Basistabellen, Trigger, Vermittlung, Stammdaten
   02_profil_ergaenzungen/    <- erweiterte Tier- und Interessentenprofile
   03_demo_daten/             <- fiktive Beispieldaten
   04_matching/               <- Matching: Entscheidung, Score, Vorschläge
@@ -84,9 +86,9 @@ paws_and_match/
   07_tests/                  <- automatische Tests
 ```
 
-**Installation:** Die 15 SQL-Dateien in der Reihenfolge aus
+**Installation:** Die 17 SQL-Dateien in der Reihenfolge aus
 [paws_and_match/README.md](paws_and_match/README.md) in *einer* Sitzung ausführen
-(MySQL Workbench oder `mysql`-Konsole). Voraussetzung: MySQL 8.0.16 oder neuer.
+(MySQL Workbench oder `mysql`-Konsole, Zeichensatz UTF-8). Voraussetzung: MySQL 8.0.16 oder neuer.
 
 > ⚠️ Schritt 1 löscht eine vorhandene Datenbank `paws_match` und legt sie neu an.
 > So ist die Installation jederzeit wiederholbar.
@@ -94,20 +96,22 @@ paws_and_match/
 | Schritt | Datei | Was passiert |
 |---|---|---|
 | 1 | `01_grundlage/01_datenbank_anlegen.sql` | Datenbank neu anlegen (UTF-8) |
-| 2 | `01_grundlage/02_tabellen_anlegen.sql` | 17 Basistabellen, 2 Trigger, `sp_vermitteln` |
-| 3 | `01_grundlage/03_stammdaten_anlegen.sql` | Tierarten, Charaktereigenschaften, Bedürfnisse |
-| 4 | `02_profil_ergaenzungen/01_tierprofile_ergaenzen.sql` | Rasse, Größe, Pflegeaufwand, Gesundheit, Kleintierverträglichkeit |
-| 5 | `02_profil_ergaenzungen/02_interessentenprofile_ergaenzen.sql` | Wohnform, Balkon, Arbeitsmodell, Wünsche, Erfahrung |
-| 6 | `03_demo_daten/01_demo_profile.sql` | 20 Tiere, 20 Interessenten, Bewerbungen, Termine |
-| 7 | `04_matching/01_matching_entscheidung.sql` | View: harte Kriterien |
-| 8 | `04_matching/02_matching_score.sql` | Gewichtung + Views: Kriterien und Score |
-| 9 | `04_matching/03_matching_vorschlaege.sql` | View: Vorschlagsliste |
-| 10 | `05_prozeduren/01_tier_vorschlaege.sql` | Tiervorschläge für einen Interessenten |
-| 11 | `05_prozeduren/02_interessenten_vorschlaege.sql` | Interessentenvorschläge für ein Tier |
-| 12 | `05_prozeduren/03_interessent_loeschen.sql` | Löschen bzw. Anonymisieren |
-| 13 | `06_ausgabe/01_matching_ausgabe.sql` | Ergebnisübersicht für Profil 17 |
-| 14 | `07_tests/01_matching_tests.sql` | 30 Tests zum Matching |
-| 15 | `07_tests/02_prozedur_tests.sql` | 43 Tests zu Prozeduren und Prozessen |
+| 2 | `01_grundlage/02_orte_anlegen.sql` | Bundesländer, Berlin, Bezirke, Ortsteile, Bezirkserkennung |
+| 3 | `01_grundlage/03_tabellen_anlegen.sql` | 17 Basistabellen, 2 Trigger, `sp_vermitteln` |
+| 4 | `01_grundlage/04_stammdaten_anlegen.sql` | Tierarten, Charaktereigenschaften, Bedürfnisse |
+| 5 | `02_profil_ergaenzungen/01_tierprofile_ergaenzen.sql` | Rasse, Größe, Pflegeaufwand, Gesundheit, Kleintierverträglichkeit |
+| 6 | `02_profil_ergaenzungen/02_interessentenprofile_ergaenzen.sql` | Wohnform, Balkon, Arbeitsmodell, Wünsche, Erfahrung |
+| 7 | `03_demo_daten/01_demo_profile.sql` | 20 Tiere, 20 Interessenten, Bewerbungen, Termine |
+| 8 | `04_matching/01_matching_entscheidung.sql` | View: harte Kriterien |
+| 9 | `04_matching/02_matching_score.sql` | Gewichtung + Views: Kriterien und Score |
+| 10 | `04_matching/03_matching_vorschlaege.sql` | View: Vorschlagsliste |
+| 11 | `05_prozeduren/01_tier_vorschlaege.sql` | Tiervorschläge für einen Interessenten |
+| 12 | `05_prozeduren/02_interessenten_vorschlaege.sql` | Interessentenvorschläge für ein Tier |
+| 13 | `05_prozeduren/03_interessent_loeschen.sql` | Löschen bzw. Anonymisieren |
+| 14 | `06_ausgabe/01_matching_ausgabe.sql` | Ergebnisübersicht für Profil 17 |
+| 15 | `07_tests/01_matching_tests.sql` | 30 Tests zum Matching |
+| 16 | `07_tests/02_prozedur_tests.sql` | 43 Tests zu Prozeduren und Prozessen |
+| 17 | `07_tests/03_orts_tests.sql` | 50 Tests zu Orten und Bezirkserkennung |
 
 ---
 
@@ -117,6 +121,11 @@ paws_and_match/
 
 ```mermaid
 erDiagram
+    bundesland ||--o{ ort : umfasst
+    ort ||--o{ bezirk : gliedert
+    bezirk ||--o{ bezirk_alias : "auch genannt"
+    bezirk ||--o{ standort : "liegt in"
+    bezirk |o--o{ interessent : "wohnt in"
     tierheim ||--o{ standort : betreibt
     standort ||--o{ mitarbeiter : beschaeftigt
     standort ||--o{ tier : beherbergt
@@ -159,7 +168,7 @@ erDiagram
     mitarbeiter ||--o{ vermittlung : schliesst_ab
 ```
 
-Die 28 Tabellen lassen sich in **sechs Gruppen** einteilen:
+Die 32 Tabellen lassen sich in **sieben Gruppen** einteilen:
 
 | Gruppe | Tabellen | Anzahl |
 |---|---|---|
@@ -169,6 +178,7 @@ Die 28 Tabellen lassen sich in **sechs Gruppen** einteilen:
 | D. Zuordnungen (n:m) | `tier_charakter`, `tier_beduerfnis`, `tier_gesundheit`, `interessent_tierart`, `interessent_charakter`, `interessent_beduerfnis`, `interessent_groesse`, `interessent_standort`, `interessent_tiererfahrung` | 9 |
 | E. Prozess | `merkliste`, `bewerbung`, `termin`, `vermittlung` | 4 |
 | F. Konfiguration | `matching_gewichtung` | 1 |
+| G. Orte | `bundesland`, `ort`, `bezirk`, `bezirk_alias` | 4 |
 
 Abkürzungen: **PK** = Primärschlüssel, **FK** = Fremdschlüssel, **UQ** = eindeutig.
 `BOOLEAN` bedeutet 1 = ja, 0 = nein, `NULL` = unbekannt.
@@ -183,15 +193,14 @@ Abkürzungen: **PK** = Primärschlüssel, **FK** = Fremdschlüssel, **UQ** = ein
 | name | VARCHAR | Name des Tierheims |
 | email | VARCHAR, UQ | Kontakt (Format geprüft) |
 
-**`standort`** – Gebäude/Filiale eines Tierheims in Berlin
+**`standort`** – Gebäude/Filiale eines Tierheims
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|
 | id | INT, PK | Nummer |
 | tierheim_id | FK → tierheim | Träger |
 | name | VARCHAR | Name des Standorts |
-| bezirk | VARCHAR | Berliner Bezirk (wichtig für „Nähe“) |
-| ort | VARCHAR | immer „Berlin“ (Projektgrenze, per CHECK) |
+| bezirk_id | FK → bezirk | Bezirk aus der Auswahlliste (wichtig für „Nähe“) |
 | kapazitaet | INT > 0 | Plätze für Tiere |
 
 **`mitarbeiter`** – Beschäftigte eines Standorts
@@ -254,7 +263,7 @@ höher als die Bereitschaft des Menschen?“).
 | id | INT, PK | Nummer |
 | pseudonym | VARCHAR | Anzeigename (kein Klarname nötig) |
 | email | VARCHAR, UQ | Kontakt |
-| bezirk | VARCHAR | Wohnbezirk (Nähe) |
+| bezirk_id | FK → bezirk | Wohnbezirk aus der Auswahlliste (Nähe); Pflicht bei aktiven Profilen |
 | aktiv | BOOLEAN | Profil sichtbar/aktiv |
 | wohnflaeche | m² | Wohnungsgröße |
 | wohnform_id | FK → wohnform | Wohnung, Haus, … |
@@ -322,6 +331,45 @@ dass Tiere oder Personen mit Vorgeschichte versehentlich gelöscht werden.
 | **Summe** | **100** |
 
 Die Gewichte können geändert werden, ohne SQL-Logik anzufassen.
+
+### 4.8 Gruppe G – Orte und Bezirkserkennung
+
+Ortsangaben werden nicht als Freitext gespeichert, sondern als Verweis auf einen Eintrag
+einer festen Liste (**Dropdown**). So gibt es keine Tippfehler oder unterschiedlichen
+Schreibweisen in der Datenbank. Aufbau von groß nach klein:
+
+| Tabelle | Spalten | Inhalt |
+|---|---|---|
+| `bundesland` | id (amtlicher Länderschlüssel), name, kuerzel | alle 16 Bundesländer |
+| `ort` | id, bundesland_id, name, ags (Amtlicher Gemeindeschlüssel), aktiv | Berlin (`11000000`), freigeschaltet |
+| `bezirk` | id, ort_id, name, schluessel, suchname | die 12 Berliner Bezirke (ID = Bezirksnummer) |
+| `bezirk_alias` | id, bezirk_id, name, suchname | 92 Einträge: Ortsteile und frühere Bezirke, z. B. Prenzlauer Berg → Pankow (alle 96 Ortsteile sind erkennbar; gleichnamige wie „Spandau“ über den Bezirksnamen) |
+
+**Dropdown:** Die View `bezirk_auswahl` liefert alle wählbaren Bezirke
+(nur Orte mit `aktiv = 1`, aktuell Berlin).
+
+**Freitext verstehen (z. B. beim Import echter Daten):** Die Funktion
+`fn_bezirk_id('Neuköln', NULL)` findet den passenden Bezirk in drei Schritten:
+
+1. **Vereinheitlichen** (`fn_text_normalisieren`): Kleinbuchstaben, ä → ae, ö → oe,
+   ü → ue, ß → ss, Leerzeichen/Bindestriche/Klammern entfernen. Ein vorangestelltes
+   „Bezirk“ wird ignoriert. „Neukölln“, „NEUKOELLN“, „neukölln “ werden alle zu `neukoelln`.
+2. **Exakt suchen:** in Bezirksnamen und Ortsteilen, auch mit Ortsnamen davor oder dahinter
+   („Berlin-Mitte“, „Lichtenberg (Berlin)“).
+3. **Tippfehler tolerieren** (`fn_levenshtein`): Der ähnlichste Name wird genommen, wenn er
+   höchstens 1 Zeichen (bei 4–5 Buchstaben) bzw. 2 Zeichen (ab 6 Buchstaben) abweicht und
+   eindeutig ist. Beispiele: „Neuköln“ → Neukölln, „Spandua“ → Spandau,
+   „NeukÃ¶lln“ (kaputte Umlaute) → Neukölln.
+
+Unbekannte oder mehrdeutige Angaben ergeben `NULL` – es wird nie geraten.
+`fn_bezirk_id_pflicht('…')` bricht stattdessen mit einer verständlichen Meldung ab
+(für Importe). Der zweite Parameter von `fn_bezirk_id` schränkt die Suche auf einen Ort ein
+– wichtig, sobald es z. B. „Mitte“ in Berlin und Hamburg gibt.
+
+**Erweiterung auf ganz Deutschland:** neue Zeilen in `ort` (mit Gemeindeschlüssel aus dem
+amtlichen Gemeindeverzeichnis) und `bezirk` anlegen und `aktiv = 1` setzen. Für Orte ohne
+Bezirke wird ein Bezirk mit dem Ortsnamen angelegt. Tabellen, Matching und Erkennung
+bleiben unverändert (per Test mit Hamburg geprüft).
 
 ---
 
@@ -530,6 +578,8 @@ ausgeschlossen, Score 0 %, beide Gründe werden angezeigt.
 | `matching_kriterien` | Teilpassung je Paar und Kategorie (9 Zeilen pro Paar) | kriterium, passung |
 | `matching_score` | Stufe 2: Score je Paar | match_prozent, datenabdeckung_prozent, gewichtung_vollstaendig |
 | `matching_vorschlaege` | Stufe 3: alle Vorschläge | tier, interessent, standort, match_prozent, begruendung |
+| `bezirk_auswahl` | Dropdown der wählbaren Bezirke | bezirk_id, bezirk, ort, bundesland |
+| `bezirk_suchbegriff` | alle Schreibweisen je Bezirk für die Erkennung | bezirk_id, suchbegriff |
 
 ### Gespeicherte Prozeduren
 
@@ -544,12 +594,23 @@ Die Vorschlagsprozeduren melden verständliche Fehler, z. B. „Interessentenpro
 gefunden“, „Tier ist aktuell nicht für neue Vorschläge verfügbar“ oder „Die neun
 Matching-Gewichte müssen vollständig sein und 100 ergeben“.
 
+### Gespeicherte Funktionen
+
+| Funktion | Beispiel | Ergebnis |
+|---|---|---|
+| `fn_text_normalisieren` | `fn_text_normalisieren('Neukölln')` | `neukoelln` |
+| `fn_levenshtein` | `fn_levenshtein('spandau', 'spandua')` | `2` (Anzahl Tippfehler) |
+| `fn_bezirk_id` | `fn_bezirk_id('Prenzlauer Berg', NULL)` | `3` (Pankow) oder `NULL` |
+| `fn_bezirk_id_pflicht` | `fn_bezirk_id_pflicht('Atlantis')` | Fehler „Bezirk nicht erkannt …“ |
+
 ### Trigger (automatische Prüfungen)
 
 | Trigger | Wann | Prüfung |
 |---|---|---|
 | `trg_bewerbung_pruefen` | vor neuer Bewerbung | Tier verfügbar, Profil aktiv |
 | `trg_vermittlung_pruefen` | vor neuer Vermittlung | nur über `sp_vermitteln` möglich |
+| `trg_bezirk_suchname_neu` / `_aendern` | vor Einfügen/Ändern eines Bezirks | Suchname automatisch vereinheitlichen |
+| `trg_bezirk_alias_suchname_neu` / `_aendern` | vor Einfügen/Ändern eines Ortsteils | Suchname automatisch vereinheitlichen |
 
 ### Beispielausgabe
 
@@ -568,7 +629,9 @@ Matching-Gewichte müssen vollständig sein und 100 ergeben“.
 - E-Mail-Adressen im Format `x@y.z`
 - Betreuungszeit + Alleinzeit ≤ 24 Stunden (Tier und Mensch)
 - Gewünschtes Mindestalter ≤ Höchstalter; gesicherter Balkon nur mit Balkon
-- Rasse muss zur Tierart passen; Standorte nur in Berlin
+- Rasse muss zur Tierart passen
+- Bezirke nur aus der Auswahlliste (aktuell Berlin); derselbe Bezirk kann nicht in zweiter
+  Schreibweise angelegt werden (z. B. „Neukoelln“ neben „Neukölln“)
 
 **Datenschutz**
 - Interessenten erscheinen mit **Pseudonym**, nicht mit Klarnamen.
@@ -590,7 +653,9 @@ Matching-Gewichte müssen vollständig sein und 100 ergeben“.
 Die Demodaten (alle fiktiv) bestehen aus 5 Tierheimen mit je einem Standort in Mitte,
 Pankow, Spandau, Neukölln und Lichtenberg, 20 Tieren (Hunde, Katzen, Kaninchen,
 Meerschweinchen, Vögel) und 20 Interessentenprofilen. Sie enthalten absichtlich
-**positive und negative Fälle**, damit jede Regel sichtbar wird.
+**positive und negative Fälle**, damit jede Regel sichtbar wird. Die Bezirke der Demodaten
+sind wie bei einem Import in unterschiedlichen Schreibweisen angegeben (z. B. „neukolln“,
+„Berlin-Mitte“, „Prenzlauer Berg“, „Spandua“) und werden automatisch zugeordnet.
 
 **Ergebnis über alle 400 Paare**
 
@@ -626,7 +691,7 @@ Bello 80,2 % · Momo 76,9 % · Wolke 76,9 %.
 
 ## 11. Tests
 
-Zwei Testskripte prüfen alles **automatisch** und enden mit
+Drei Testskripte prüfen alles **automatisch** und enden mit
 „ALLE … TESTS BESTANDEN“. Sie verändern die Demodaten nicht (Änderungen werden
 zurückgerollt bzw. mit eigenen Testdaten gemacht und danach entfernt – das wird per
 Prüfsumme kontrolliert).
@@ -645,7 +710,13 @@ Prüfsumme kontrolliert).
 | Vermittlung | falscher Mitarbeiter, Rollback, Trigger, Erfolg, Ablehnung der Konkurrenz | 11 |
 | Löschen | Anonymisieren, Löschen, Cascade, geschützte Historie | 9 |
 | Unverändert | Demodaten nach den Tests identisch | 1 |
-| **Summe** | | **73** |
+| Orte: Hilfsfunktionen | Vereinheitlichung, Levenshtein-Distanz | 3 |
+| Orte: Stammdaten | 16 Länder, 12 Bezirke, jeder Bezirk/Ortsteil eindeutig erkennbar | 3 |
+| Orte: Freitext | 32 Schreibweisen mit Umlauten, Tippfehlern, Ortsteilen, Unbekanntem; Ortseinschränkung | 33 |
+| Orte: Demodaten | alle Bezirke korrekt zugeordnet | 2 |
+| Orte: Erweiterung | Ort abschalten, Hamburg ergänzen, mehrdeutiges „Mitte“ | 4 |
+| Orte: Datenqualität | doppelte Schreibweise, Profil ohne Bezirk, unbekannter Bezirk, Import-Fehler | 5 |
+| **Summe** | | **123** |
 
 ---
 
@@ -667,6 +738,11 @@ Festlegung und kann angepasst werden.
 Das Tierheim kann Prioritäten ändern (z. B. Nähe wichtiger machen), ohne Programmcode
 zu ändern.
 
+**Warum Bezirke als Liste statt Freitext?**
+Freitext führt zu „Neukölln“, „Neukoelln“ und „Neuköln“ als drei verschiedenen Werten –
+die Kategorie „Nähe“ würde dann nicht mehr funktionieren. Die Liste macht Vergleiche
+sicher; die Erkennungsfunktion übersetzt Freitext aus externen Quellen in die Liste.
+
 **Grenzen**
 - Gesundheitsmerkmale, Rasse, Wohnform, Haushaltsgröße und Arbeitsmodell werden
   gespeichert, fließen aber (noch) nicht in das Matching ein.
@@ -674,8 +750,13 @@ zu ändern.
 - Der Mindestscore (50 %) ist fest in der Vorschlags-View hinterlegt.
 - Für sehr große Datenmengen müsste das Matching vorberechnet werden
   (aktuell wird jedes Tier mit jedem Menschen verglichen).
+- „Nähe“ unterscheidet nur gleicher/anderer Bezirk, keine Entfernung in Kilometern.
 
 **Ausblick**
+- Anbindung einer externen Datenquelle für echte Tier- und Interessentendaten
+  (Bezirkserkennung ist dafür vorbereitet)
+- Erweiterung auf ganz Deutschland (amtliches Gemeindeverzeichnis, Postleitzahlen)
+- Nähe über Entfernung (Geokoordinaten) statt nur Bezirksgleichheit
 - Gesundheitsmerkmale und Arbeitsmodell in den Score aufnehmen
 - Rückgabe eines Tieres (Vermittlung beenden, Tier wieder verfügbar)
 - Reservierung an eine konkrete Bewerbung binden
@@ -691,18 +772,19 @@ zu ändern.
 | 2 | Problem: Fehlvermittlungen und Rückgaben | Abschnitt 1 |
 | 3 | Unsere Lösung und Prinzipien | Abschnitt 1 |
 | 4 | Projekt in Zahlen | Abschnitt 2 |
-| 5 | Datenmodell (ER-Diagramm, 6 Gruppen) | Abschnitt 4.1 |
+| 5 | Datenmodell (ER-Diagramm, 7 Gruppen) | Abschnitt 4.1 |
 | 6 | Kerntabellen Tier und Interessent | Abschnitt 4.4 |
-| 7 | Vermittlungsprozess und Schutzregeln | Abschnitt 5 |
-| 8 | Algorithmus: 3 Stufen (Türsteher, Benotung, Empfehlung) | Abschnitt 6.1 |
-| 9 | Harte Kriterien als Ampel | Abschnitt 6.2 |
-| 10 | Score: Reserve-Idee und 9 Kategorien | Abschnitt 6.3 |
-| 11 | Rechenbeispiel Bello + Profil 17 | Abschnitt 7 |
-| 12 | Live-Demo: `CALL sp_vorschlaege_fuer_interessent(17);` | Abschnitt 8 |
-| 13 | Datenqualität, Datenschutz, Löschkonzept | Abschnitt 9 |
-| 14 | Ergebnisse der Demodaten | Abschnitt 10 |
-| 15 | Qualitätssicherung: 73 automatische Tests | Abschnitt 11 |
-| 16 | Entscheidungen, Grenzen, Ausblick | Abschnitt 12 |
+| 7 | Orte: Dropdown und Erkennung von Tippfehlern/Umlauten | Abschnitt 4.8 |
+| 8 | Vermittlungsprozess und Schutzregeln | Abschnitt 5 |
+| 9 | Algorithmus: 3 Stufen (Türsteher, Benotung, Empfehlung) | Abschnitt 6.1 |
+| 10 | Harte Kriterien als Ampel | Abschnitt 6.2 |
+| 11 | Score: Reserve-Idee und 9 Kategorien | Abschnitt 6.3 |
+| 12 | Rechenbeispiel Bello + Profil 17 | Abschnitt 7 |
+| 13 | Live-Demo: `CALL sp_vorschlaege_fuer_interessent(17);` | Abschnitt 8 |
+| 14 | Datenqualität, Datenschutz, Löschkonzept | Abschnitt 9 |
+| 15 | Ergebnisse der Demodaten | Abschnitt 10 |
+| 16 | Qualitätssicherung: 123 automatische Tests | Abschnitt 11 |
+| 17 | Entscheidungen, Grenzen, Ausblick | Abschnitt 12 |
 
 **Live-Demo in MySQL Workbench**
 ```sql
@@ -713,6 +795,8 @@ SELECT tiername, eignung, ausschlussgruende
 FROM matching_score WHERE interessent_id = 19 AND tier_id = 16;   -- Begründung eines Ausschlusses
 SELECT kriterium, passung
 FROM matching_kriterien WHERE interessent_id = 17 AND tier_id = 16; -- Score-Bausteine
+SELECT * FROM bezirk_auswahl ORDER BY bezirk_id;                     -- Dropdown
+SELECT fn_bezirk_id('Neuköln', NULL), fn_bezirk_id('Prenzlauer Berg', NULL); -- 8, 3
 ```
 
 ---
@@ -736,3 +820,8 @@ FROM matching_kriterien WHERE interessent_id = 17 AND tier_id = 16; -- Score-Bau
 | Match-Prozent (Score) | gewichtete Summe der Teilpassungen, 0–100 % |
 | Datenabdeckung | Anteil der Gewichte, für die Daten vorliegen |
 | Reserve | wie weit ein Angebot über der Mindestanforderung liegt |
+| Gespeicherte Funktion | wie eine Prozedur, liefert aber einen Wert und kann in Abfragen verwendet werden |
+| Normalisierung (Text) | Vereinheitlichen einer Schreibweise, z. B. „Neukölln“ → `neukoelln` |
+| Levenshtein-Distanz | Anzahl der Tippfehler (Buchstaben einfügen, löschen, ersetzen) zwischen zwei Wörtern |
+| Alias | alternativer Name, z. B. ein Ortsteil, der zu einem Bezirk gehört |
+| AGS | Amtlicher Gemeindeschlüssel, eindeutige Nummer jeder Gemeinde in Deutschland |

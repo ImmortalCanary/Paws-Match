@@ -5,26 +5,29 @@ Die Dateien sind in der angegebenen Reihenfolge in **einer** Sitzung auszufuehre
 ## Ausfuehrungsreihenfolge
 
 1. `paws_and_match/01_grundlage/01_datenbank_anlegen.sql`
-2. `paws_and_match/01_grundlage/02_tabellen_anlegen.sql`
-3. `paws_and_match/01_grundlage/03_stammdaten_anlegen.sql`
-4. `paws_and_match/02_profil_ergaenzungen/01_tierprofile_ergaenzen.sql`
-5. `paws_and_match/02_profil_ergaenzungen/02_interessentenprofile_ergaenzen.sql`
-6. `paws_and_match/03_demo_daten/01_demo_profile.sql`
-7. `paws_and_match/04_matching/01_matching_entscheidung.sql`
-8. `paws_and_match/04_matching/02_matching_score.sql`
-9. `paws_and_match/04_matching/03_matching_vorschlaege.sql`
-10. `paws_and_match/05_prozeduren/01_tier_vorschlaege.sql`
-11. `paws_and_match/05_prozeduren/02_interessenten_vorschlaege.sql`
-12. `paws_and_match/05_prozeduren/03_interessent_loeschen.sql`
-13. `paws_and_match/06_ausgabe/01_matching_ausgabe.sql`
-14. `paws_and_match/07_tests/01_matching_tests.sql`
-15. `paws_and_match/07_tests/02_prozedur_tests.sql`
+2. `paws_and_match/01_grundlage/02_orte_anlegen.sql`
+3. `paws_and_match/01_grundlage/03_tabellen_anlegen.sql`
+4. `paws_and_match/01_grundlage/04_stammdaten_anlegen.sql`
+5. `paws_and_match/02_profil_ergaenzungen/01_tierprofile_ergaenzen.sql`
+6. `paws_and_match/02_profil_ergaenzungen/02_interessentenprofile_ergaenzen.sql`
+7. `paws_and_match/03_demo_daten/01_demo_profile.sql`
+8. `paws_and_match/04_matching/01_matching_entscheidung.sql`
+9. `paws_and_match/04_matching/02_matching_score.sql`
+10. `paws_and_match/04_matching/03_matching_vorschlaege.sql`
+11. `paws_and_match/05_prozeduren/01_tier_vorschlaege.sql`
+12. `paws_and_match/05_prozeduren/02_interessenten_vorschlaege.sql`
+13. `paws_and_match/05_prozeduren/03_interessent_loeschen.sql`
+14. `paws_and_match/06_ausgabe/01_matching_ausgabe.sql`
+15. `paws_and_match/07_tests/01_matching_tests.sql`
+16. `paws_and_match/07_tests/02_prozedur_tests.sql`
+17. `paws_and_match/07_tests/03_orts_tests.sql`
 
 ## Hinweise
 
 - MySQL 8.0.16 oder neuer wird vorausgesetzt (CHECK-Constraints, CTEs, JSON_TABLE).
 - Getestet mit MySQL Community Server 8.4.13: Neuinstallation, Wiederholung der
-  Installation und beide Testskripte laufen fehlerfrei (30 + 43 Tests bestanden).
+  Installation und alle Testskripte laufen fehlerfrei (30 + 43 + 50 Tests bestanden).
+- Die Dateien muessen als UTF-8 ausgefuehrt werden (amtliche Ortsnamen mit Umlauten).
 - Schritt 1 entfernt eine vorhandene Datenbank `paws_match` vollstaendig. Dadurch ist die
   Installation beliebig wiederholbar; bestehende Daten in `paws_match` gehen dabei verloren.
 - Views werden mit `CREATE OR REPLACE`, Prozeduren nach `DROP ... IF EXISTS` angelegt.
@@ -32,6 +35,9 @@ Die Dateien sind in der angegebenen Reihenfolge in **einer** Sitzung auszufuehre
 ## Datenmodell
 
 - Organisation: `tierheim`, `standort`, `mitarbeiter`
+- Orte: `bundesland` -> `ort` -> `bezirk` (+ `bezirk_alias` fuer Ortsteile); Standorte und
+  Interessenten verweisen per Fremdschluessel auf einen Bezirk (Dropdown: View
+  `bezirk_auswahl`, freigeschaltet ist vorerst nur Berlin).
 - Profile: `tier`, `interessent` mit Ergaenzungen (Rasse, Groesse, Pflegeaufwand,
   Gesundheit, Wohnform, Arbeitsmodell, Wunschgroesse, Wunschstandort, Tiererfahrung)
 - Prozess: `merkliste`, `bewerbung`, `termin`, `vermittlung`
@@ -61,6 +67,14 @@ Die Dateien sind in der angegebenen Reihenfolge in **einer** Sitzung auszufuehre
    Profil aktiv, Gewichtung gueltig, Score mindestens 50). Die Prozeduren
    `sp_vorschlaege_fuer_interessent` und `sp_vorschlaege_fuer_tier` lesen daraus.
 
+## Bezirkserkennung (Freitext, z. B. bei Importen)
+
+- `fn_bezirk_id(text, ort_id)` liefert die Bezirk-ID oder NULL (unbekannt/mehrdeutig):
+  Schreibweise vereinheitlichen (Gross/klein, Umlaute, Sonderzeichen), exakt in Bezirken
+  und Ortsteilen suchen, danach Tippfehler bis Distanz 1 (4-5 Zeichen) bzw. 2 tolerieren.
+- `fn_bezirk_id_pflicht(text)` bricht bei unbekanntem Bezirk mit Meldung ab.
+- Erweiterung: Zeilen in `ort`/`bezirk` ergaenzen und `ort.aktiv = 1` setzen.
+
 ## Vermittlung und Loeschung
 
 - `sp_vermitteln(bewerbung, mitarbeiter)`: prueft Standort, aktives Profil und Status,
@@ -75,6 +89,6 @@ Die Dateien sind in der angegebenen Reihenfolge in **einer** Sitzung auszufuehre
 
 ## Tests
 
-Beide Testskripte pruefen automatisch und enden mit einer Zusammenfassung
+Alle drei Testskripte pruefen automatisch und enden mit einer Zusammenfassung
 (`ALLE ... TESTS BESTANDEN`). Aenderungen laufen in zurueckgerollten Transaktionen bzw.
 mit Testdaten ab ID 9001, die am Ende entfernt werden; die Demodaten bleiben unveraendert.

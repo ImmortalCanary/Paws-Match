@@ -167,13 +167,13 @@ ROLLBACK;
 INSERT INTO tier (id, standort_id, tierart_id, name) VALUES
     (9001, 1, 1, 'Testtier A'), (9002, 1, 1, 'Testtier B'),
     (9003, 1, 1, 'Testtier C'), (9004, 1, 1, 'Testtier D');
-INSERT INTO interessent (id, pseudonym, email, bezirk, aktiv, wohnflaeche) VALUES
-    (9001, 'Test 1', 'test9001@example.org', 'Mitte', 1, 50),
-    (9002, 'Test 2', 'test9002@example.org', 'Mitte', 1, 50),
-    (9003, 'Test 3', 'test9003@example.org', 'Mitte', 1, 50),
-    (9004, 'Test 4', 'test9004@example.org', 'Mitte', 1, 50),
-    (9005, 'Test 5', 'test9005@example.org', 'Mitte', 0, 50),
-    (9006, 'Test 6', 'test9006@example.org', 'Mitte', 1, 50);
+INSERT INTO interessent (id, pseudonym, email, bezirk_id, aktiv, wohnflaeche) VALUES
+    (9001, 'Test 1', 'test9001@example.org', 1, 1, 50),
+    (9002, 'Test 2', 'test9002@example.org', 1, 1, 50),
+    (9003, 'Test 3', 'test9003@example.org', 1, 1, 50),
+    (9004, 'Test 4', 'test9004@example.org', 1, 1, 50),
+    (9005, 'Test 5', 'test9005@example.org', 1, 0, 50),
+    (9006, 'Test 6', 'test9006@example.org', 1, 1, 50);
 INSERT INTO bewerbung (id, interessent_id, tier_id, notiz) VALUES
     (9001, 9001, 9001, NULL), (9002, 9002, 9001, 'Testnotiz'),
     (9003, 9003, 9002, 'Persoenliche Notiz'), (9004, 9006, 9003, NULL);
@@ -233,7 +233,7 @@ SELECT 'Mit Historie: anonymisiert, Bewerbung bleibt erhalten',
               + (SELECT COUNT(*) FROM interessent_tierart WHERE interessent_id = 9003)
               + (SELECT COUNT(*) FROM merkliste WHERE interessent_id = 9003), ' Profildaten'),
        @erg_9003 = 'anonymisiert' AND i.aktiv = 0 AND i.email = 'anonymisiert-9003@paws-match.invalid'
-       AND i.pseudonym = 'Anonymisiert 9003' AND i.wohnflaeche IS NULL
+       AND i.pseudonym = 'Anonymisiert 9003' AND i.wohnflaeche IS NULL AND i.bezirk_id IS NULL
        AND b.status = 'zurueckgezogen' AND b.notiz IS NULL
        AND (SELECT COUNT(*) FROM interessent_charakter WHERE interessent_id = 9003)
            + (SELECT COUNT(*) FROM interessent_tierart WHERE interessent_id = 9003)

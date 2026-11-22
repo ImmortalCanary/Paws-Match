@@ -12,12 +12,11 @@ CREATE TABLE standort (
     id INT PRIMARY KEY AUTO_INCREMENT,
     tierheim_id INT NOT NULL,
     name VARCHAR(120) NOT NULL,
-    bezirk VARCHAR(60) NOT NULL,
-    ort VARCHAR(50) NOT NULL DEFAULT 'Berlin',
+    bezirk_id INT NOT NULL,
     kapazitaet INT NOT NULL,
     CONSTRAINT fk_standort_tierheim FOREIGN KEY (tierheim_id) REFERENCES tierheim(id),
-    CONSTRAINT ck_standort_kapazitaet CHECK (kapazitaet > 0),
-    CONSTRAINT ck_standort_ort CHECK (ort = 'Berlin')
+    CONSTRAINT fk_standort_bezirk FOREIGN KEY (bezirk_id) REFERENCES bezirk(id),
+    CONSTRAINT ck_standort_kapazitaet CHECK (kapazitaet > 0)
 ) ENGINE = InnoDB;
 
 CREATE TABLE mitarbeiter (
@@ -38,7 +37,7 @@ CREATE TABLE interessent (
     id INT PRIMARY KEY AUTO_INCREMENT,
     pseudonym VARCHAR(80) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    bezirk VARCHAR(60) NOT NULL,
+    bezirk_id INT NULL,
     aktiv BOOLEAN NOT NULL DEFAULT TRUE,
     wohnflaeche DECIMAL(6,2),
     garten BOOLEAN,
@@ -53,6 +52,9 @@ CREATE TABLE interessent (
     budget DECIMAL(8,2),
     medizin_bereit BOOLEAN,
     aktivitaet INT,
+    CONSTRAINT fk_interessent_bezirk FOREIGN KEY (bezirk_id) REFERENCES bezirk(id),
+    -- Nur anonymisierte (inaktive) Profile duerfen ohne Bezirk sein.
+    CONSTRAINT ck_interessent_bezirk CHECK (aktiv = 0 OR bezirk_id IS NOT NULL),
     CONSTRAINT ck_interessent_email CHECK (email LIKE '%_@_%._%'),
     CONSTRAINT ck_interessent_aktiv CHECK (aktiv IN (0, 1)),
     CONSTRAINT ck_interessent_wohnflaeche CHECK (wohnflaeche >= 0),
