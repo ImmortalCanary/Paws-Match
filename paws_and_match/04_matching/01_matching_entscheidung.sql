@@ -2,7 +2,7 @@ USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
 
-CREATE VIEW matching_entscheidung AS
+CREATE OR REPLACE VIEW matching_entscheidung AS
 WITH profil AS (
     SELECT
         t.*, i.id AS interessent_id, i.pseudonym, i.aktiv AS interessent_aktiv,
@@ -54,13 +54,7 @@ JOIN JSON_TABLE(JSON_ARRAY(
     JSON_ARRAY('Monatliches Budget', CASE WHEN monatskosten = 0 THEN 0 WHEN budget < monatskosten THEN 2 WHEN budget IS NULL OR monatskosten IS NULL THEN 1 ELSE 0 END),
     JSON_ARRAY('Medizinische Versorgung', CASE WHEN medizin_bedarf = 0 OR medizin_bereit = 1 THEN 0 WHEN medizin_bedarf = 1 AND medizin_bereit = 0 THEN 2 ELSE 1 END),
     JSON_ARRAY('Tierarztbereitschaft', CASE WHEN medizin_bedarf = 0 OR tierarzt_bereit = 1 THEN 0 WHEN medizin_bedarf = 1 AND tierarzt_bereit = 0 THEN 2 ELSE 1 END),
-    JSON_ARRAY('Notwendiges Training',
-        CASE
-            WHEN training_bedarf = 0 THEN 0
-            WHEN training_bedarf = 1 AND training_bereit = 0 THEN 2
-            WHEN training_bedarf = 1 AND training_bereit IS NULL THEN 1
-            ELSE 1
-        END),
+    JSON_ARRAY('Notwendiges Training', CASE WHEN training_bedarf = 0 OR training_bereit = 1 THEN 0 WHEN training_bereit = 0 THEN 2 ELSE 1 END),
     JSON_ARRAY('Pflegeaufwand', CASE WHEN pflege_bereitschaft < pflege_bedarf THEN 2 WHEN pflege_bereitschaft IS NULL OR pflege_bedarf IS NULL THEN 1 ELSE 0 END),
     JSON_ARRAY('Erforderlicher gesicherter Balkon', CASE WHEN balkon_bedarf = 0 THEN 0 WHEN balkon = 0 OR balkon_gesichert = 0 THEN 2 WHEN balkon = 1 AND balkon_gesichert = 1 THEN 0 ELSE 1 END),
     JSON_ARRAY('Verbindliches Beduerfnis ausdruecklich abgelehnt', IF(bedarf_abgelehnt, 2, 0)),

@@ -126,3 +126,67 @@ INSERT INTO termin (id, bewerbung_id, mitarbeiter_id, zeitpunkt, art) VALUES
     (3, 3, 3, '2026-12-01 14:00:00', 'kennenlernen'),
     (4, 4, 4, '2026-12-01 14:00:00', 'kennenlernen'),
     (5, 5, 5, '2026-12-01 14:00:00', 'kennenlernen');
+
+-- Erweiterte Tierprofile (Groesse, Pflegeaufwand, Kleintiervertraeglichkeit).
+UPDATE tier SET groesse_id = 2, pflegeaufwand_id = 2, kleintiere_ok = 1 WHERE id IN (1, 6, 11);
+UPDATE tier SET groesse_id = 3, pflegeaufwand_id = 2, kleintiere_ok = 0 WHERE id = 16;
+UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 1, kleintiere_ok = 0 WHERE id IN (2, 7, 12, 17);
+UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 2, kleintiere_ok = 1 WHERE id IN (3, 8, 13, 4, 9, 14, 19);
+UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 3, kleintiere_ok = 1 WHERE id = 18;
+UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 1, kleintiere_ok = 1 WHERE id IN (5, 10, 15, 20);
+
+-- Erweiterte Interessentenprofile.
+UPDATE interessent
+SET wohnform_id = 2, balkon = 0, balkon_gesichert = 0, haushaltsgroesse = 2,
+    kleintiere_vorhanden = 0, arbeitsmodell_id = 3, wunschalter_min = 1, wunschalter_max = 10,
+    training_bereit = 1, tierarzt_bereit = 1, max_pflegeaufwand_id = 3
+WHERE id BETWEEN 1 AND 15;
+
+UPDATE interessent SET balkon = 1, balkon_gesichert = 1 WHERE id IN (2, 12);
+UPDATE interessent SET balkon = 1, balkon_gesichert = 0 WHERE id = 7;
+UPDATE interessent SET training_bereit = 0 WHERE id = 9;
+
+UPDATE interessent
+SET wohnform_id = 1, balkon = 1, balkon_gesichert = 1, haushaltsgroesse = 1,
+    kleintiere_vorhanden = 1, arbeitsmodell_id = 1, wunschalter_min = 0, wunschalter_max = 8,
+    training_bereit = 0, tierarzt_bereit = 1, max_pflegeaufwand_id = 2
+WHERE id = 16;
+
+UPDATE interessent
+SET wohnform_id = 2, balkon = 0, balkon_gesichert = 0, haushaltsgroesse = 4,
+    kleintiere_vorhanden = 0, arbeitsmodell_id = 2, wunschalter_min = 1, wunschalter_max = 12,
+    training_bereit = 1, tierarzt_bereit = 1, max_pflegeaufwand_id = 3
+WHERE id = 17;
+
+UPDATE interessent
+SET wohnform_id = 1, balkon = 1, balkon_gesichert = 0, haushaltsgroesse = 1,
+    kleintiere_vorhanden = 1, arbeitsmodell_id = 1, wunschalter_min = 0, wunschalter_max = 6,
+    training_bereit = 1, tierarzt_bereit = 1, max_pflegeaufwand_id = 2
+WHERE id = 18;
+
+UPDATE interessent
+SET wohnform_id = 2, balkon = 0, balkon_gesichert = 0, haushaltsgroesse = 2,
+    kleintiere_vorhanden = 0, arbeitsmodell_id = 4, wunschalter_min = 0, wunschalter_max = 15,
+    training_bereit = 1, tierarzt_bereit = 1, max_pflegeaufwand_id = 3
+WHERE id = 19;
+
+UPDATE interessent
+SET wohnform_id = 1, balkon = 1, balkon_gesichert = 1, haushaltsgroesse = 1,
+    kleintiere_vorhanden = 0, arbeitsmodell_id = 1,
+    training_bereit = 0, tierarzt_bereit = 0, max_pflegeaufwand_id = 1
+WHERE id = 20;
+
+-- Profil 13 bewusst ohne tierartspezifische Erfahrung (Beispiel fuer offene Pruefung).
+INSERT INTO interessent_tiererfahrung (interessent_id, tierart_id, erfahrungslevel) VALUES
+    (1, 1, 3), (2, 2, 3), (3, 3, 3), (4, 4, 3), (5, 5, 3),
+    (6, 1, 3), (7, 2, 3), (8, 3, 3), (9, 4, 3), (10, 5, 3),
+    (11, 1, 3), (12, 2, 3), (14, 4, 3), (15, 5, 3),
+    (16, 2, 2), (16, 3, 2), (17, 1, 4), (17, 3, 2),
+    (18, 4, 1), (18, 5, 1), (19, 1, 2), (19, 2, 3),
+    (20, 3, 0), (20, 4, 1);
+
+INSERT INTO interessent_groesse (interessent_id, groesse_id) VALUES
+    (1, 2), (16, 1), (17, 2), (17, 3);
+
+INSERT INTO interessent_standort (interessent_id, standort_id) VALUES
+    (17, 1);

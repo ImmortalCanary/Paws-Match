@@ -52,7 +52,7 @@ CREATE TABLE interessent_groesse (
     interessent_id INT NOT NULL,
     groesse_id INT NOT NULL,
     PRIMARY KEY (interessent_id, groesse_id),
-    CONSTRAINT fk_interessent_groesse_interessent FOREIGN KEY (interessent_id) REFERENCES interessent(id),
+    CONSTRAINT fk_interessent_groesse_interessent FOREIGN KEY (interessent_id) REFERENCES interessent(id) ON DELETE CASCADE,
     CONSTRAINT fk_interessent_groesse_groesse FOREIGN KEY (groesse_id) REFERENCES tier_groesse(id)
 ) ENGINE = InnoDB;
 
@@ -60,7 +60,7 @@ CREATE TABLE interessent_standort (
     interessent_id INT NOT NULL,
     standort_id INT NOT NULL,
     PRIMARY KEY (interessent_id, standort_id),
-    CONSTRAINT fk_interessent_standort_interessent FOREIGN KEY (interessent_id) REFERENCES interessent(id),
+    CONSTRAINT fk_interessent_standort_interessent FOREIGN KEY (interessent_id) REFERENCES interessent(id) ON DELETE CASCADE,
     CONSTRAINT fk_interessent_standort_standort FOREIGN KEY (standort_id) REFERENCES standort(id)
 ) ENGINE = InnoDB;
 
@@ -69,7 +69,7 @@ CREATE TABLE interessent_tiererfahrung (
     tierart_id INT NOT NULL,
     erfahrungslevel INT NOT NULL,
     PRIMARY KEY (interessent_id, tierart_id),
-    CONSTRAINT fk_interessent_tiererfahrung_interessent FOREIGN KEY (interessent_id) REFERENCES interessent(id),
+    CONSTRAINT fk_interessent_tiererfahrung_interessent FOREIGN KEY (interessent_id) REFERENCES interessent(id) ON DELETE CASCADE,
     CONSTRAINT fk_interessent_tiererfahrung_tierart FOREIGN KEY (tierart_id) REFERENCES tierart(id),
     CONSTRAINT ck_interessent_tiererfahrung CHECK (erfahrungslevel BETWEEN 0 AND 5)
 ) ENGINE = InnoDB;

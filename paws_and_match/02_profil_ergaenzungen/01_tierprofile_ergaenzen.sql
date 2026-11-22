@@ -37,7 +37,7 @@ CREATE TABLE tier_gesundheit (
     geprueft_am DATE NOT NULL,
     hinweis VARCHAR(500),
     PRIMARY KEY (tier_id, gesundheitsmerkmal_id),
-    CONSTRAINT fk_tier_gesundheit_tier FOREIGN KEY (tier_id) REFERENCES tier(id),
+    CONSTRAINT fk_tier_gesundheit_tier FOREIGN KEY (tier_id) REFERENCES tier(id) ON DELETE CASCADE,
     CONSTRAINT fk_tier_gesundheit_merkmal FOREIGN KEY (gesundheitsmerkmal_id) REFERENCES gesundheitsmerkmal(id),
     CONSTRAINT ck_tier_gesundheit_bestaetigt CHECK (bestaetigt IN (0, 1))
 ) ENGINE = InnoDB;
@@ -47,9 +47,11 @@ ALTER TABLE tier
     ADD COLUMN groesse_id INT NULL,
     ADD COLUMN pflegeaufwand_id INT NULL,
     ADD COLUMN foto_url VARCHAR(2048) NULL,
+    ADD COLUMN kleintiere_ok BOOLEAN NULL,
     ADD CONSTRAINT fk_tier_rasse FOREIGN KEY (rasse_id, tierart_id) REFERENCES tier_rasse(id, tierart_id),
     ADD CONSTRAINT fk_tier_groesse FOREIGN KEY (groesse_id) REFERENCES tier_groesse(id),
-    ADD CONSTRAINT fk_tier_pflegeaufwand FOREIGN KEY (pflegeaufwand_id) REFERENCES pflegeaufwand(id);
+    ADD CONSTRAINT fk_tier_pflegeaufwand FOREIGN KEY (pflegeaufwand_id) REFERENCES pflegeaufwand(id),
+    ADD CONSTRAINT ck_tier_kleintiere CHECK (kleintiere_ok IN (0, 1));
 
 INSERT INTO tier_groesse (id, name, rang) VALUES
     (1, 'klein', 1), (2, 'mittel', 2), (3, 'gross', 3);
