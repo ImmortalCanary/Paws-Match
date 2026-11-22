@@ -1,3 +1,4 @@
+-- Basistabellen sowie die Trigger fuer Bewerbung und Vermittlung.
 USE paws_match;
 SET NAMES utf8mb4;
 
@@ -53,7 +54,7 @@ CREATE TABLE interessent (
     medizin_bereit BOOLEAN,
     aktivitaet INT,
     CONSTRAINT fk_interessent_bezirk FOREIGN KEY (bezirk_id) REFERENCES bezirk(id),
-    -- Nur anonymisierte (inaktive) Profile duerfen ohne Bezirk sein.
+    -- Ohne Bezirk geht nur bei anonymisierten Profilen, die sind immer inaktiv.
     CONSTRAINT ck_interessent_bezirk CHECK (aktiv = 0 OR bezirk_id IS NOT NULL),
     CONSTRAINT ck_interessent_email CHECK (email LIKE '%_@_%._%'),
     CONSTRAINT ck_interessent_aktiv CHECK (aktiv IN (0, 1)),
@@ -178,7 +179,7 @@ CREATE TABLE merkliste (
     CONSTRAINT fk_merkliste_tier FOREIGN KEY (tier_id) REFERENCES tier(id) ON DELETE CASCADE
 ) ENGINE = InnoDB;
 
--- Bewerbungen, Termine und Vermittlungen sind Historie: kein Cascade, Loeschen wird blockiert.
+-- Bewerbung, Termin und Vermittlung sind Historie. Darum kein Cascade, Loeschen wird hier blockiert.
 CREATE TABLE bewerbung (
     id INT PRIMARY KEY AUTO_INCREMENT,
     interessent_id INT NOT NULL,
@@ -253,67 +254,6 @@ BEGIN
     ) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Vermittlung nur ueber sp_vermitteln abschliessen.';
     END IF;
-END$$
-
-CREATE PROCEDURE sp_vermitteln (IN p_bewerbung INT, IN p_mitarbeiter INT)
-MODIFIES SQL DATA
-BEGIN
-    DECLARE v_tier INT DEFAULT NULL;
-    DECLARE v_interessent INT DEFAULT NULL;
-    DECLARE v_tierstatus VARCHAR(30);
-    DECLARE v_bewerbungsstatus VARCHAR(30);
-
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        RESIGNAL;
-    END;
-
-    START TRANSACTION;
-
-    SELECT tier_id INTO v_tier FROM bewerbung WHERE id = p_bewerbung;
-
-    IF v_tier IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Bewerbung nicht gefunden.';
-    END IF;
-
-    -- Gleiche Sperrreihenfolge wie trg_bewerbung_pruefen (erst Tier, dann Bewerbung).
-    SELECT status INTO v_tierstatus FROM tier WHERE id = v_tier FOR UPDATE;
-    SELECT status, interessent_id INTO v_bewerbungsstatus, v_interessent
-    FROM bewerbung WHERE id = p_bewerbung FOR UPDATE;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM mitarbeiter m JOIN tier t ON t.standort_id = m.standort_id
-        WHERE m.id = p_mitarbeiter AND t.id = v_tier
-    ) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Mitarbeiter gehoert nicht zum Standort des Tieres.';
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM interessent WHERE id = v_interessent AND aktiv = 1) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Interessentenprofil ist nicht aktiv.';
-    END IF;
-
-    IF v_tierstatus NOT IN ('verfuegbar', 'reserviert')
-       OR v_bewerbungsstatus NOT IN ('offen', 'in_pruefung') THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Vermittlung in diesem Status nicht moeglich.';
-    END IF;
-
-    UPDATE tier SET status = 'reserviert' WHERE id = v_tier;
-    UPDATE bewerbung SET status = 'angenommen' WHERE id = p_bewerbung;
-
-    INSERT INTO vermittlung (bewerbung_id, tier_id, mitarbeiter_id)
-    VALUES (p_bewerbung, v_tier, p_mitarbeiter);
-
-    UPDATE tier SET status = 'vermittelt' WHERE id = v_tier;
-
-    UPDATE bewerbung
-    SET status = 'abgelehnt',
-        notiz = CONCAT_WS(' | ', notiz, 'Automatisch abgelehnt: Tier wurde anderweitig vermittelt.')
-    WHERE tier_id = v_tier
-      AND id <> p_bewerbung
-      AND status IN ('offen', 'in_pruefung');
-
-    COMMIT;
 END$$
 
 DELIMITER ;

@@ -1,14 +1,16 @@
-# Paws & Match – Tierheim-Datenbank mit Matching
+# Paws & Match: Tierheim-Datenbank mit Matching
 
-> Eine MySQL-Datenbank, die Tiere aus Berliner Tierheimen mit passenden Menschen
-> zusammenbringt – nachvollziehbar, fair und mit Begründung.
+Unser Projekt für das Modul Datenbanken: eine MySQL-Datenbank, die Tiere aus Berliner
+Tierheimen mit passenden Menschen zusammenbringt. Jede Entscheidung soll nachvollziehbar
+sein und eine Begründung haben.
 
-Dieses Dokument erklärt **alles** im Repository: Idee, Tabellen, Algorithmus, Abläufe,
-Demodaten, Tests und Ergebnisse. Es ist zugleich die Grundlage für unsere Präsentation
-(Gliederungsvorschlag in [Abschnitt 13](#13-vorschlag-für-die-präsentation)).
+In dieser Datei haben wir alles zusammengeschrieben, was man zum Verstehen des Projekts
+braucht: Idee, Tabellen, Algorithmus, Abläufe, Demodaten, Tests und Ergebnisse. Sie ist
+auch die Grundlage für unsere Präsentation (Gliederung in
+[Abschnitt 13](#13-gliederung-für-die-präsentation)).
 
-Technische Kurzanleitung: [paws_and_match/README.md](paws_and_match/README.md) ·
-Entwicklungshinweise und Änderungsprotokoll: [context/AGENTS.md](context/AGENTS.md)
+- Kurzanleitung zum Installieren: [paws_and_match/README.md](paws_and_match/README.md)
+- Konventionen und Änderungsprotokoll: [context/AGENTS.md](context/AGENTS.md)
 
 ---
 
@@ -17,7 +19,7 @@ Entwicklungshinweise und Änderungsprotokoll: [context/AGENTS.md](context/AGENTS
 1. [Die Idee in einem Satz](#1-die-idee-in-einem-satz)
 2. [Das Projekt in Zahlen](#2-das-projekt-in-zahlen)
 3. [Aufbau des Repositories und Installation](#3-aufbau-des-repositories-und-installation)
-4. [Datenmodell – alle Tabellen](#4-datenmodell--alle-tabellen)
+4. [Datenmodell: alle Tabellen](#4-datenmodell-alle-tabellen)
 5. [Der Vermittlungsprozess](#5-der-vermittlungsprozess)
 6. [Der Matching-Algorithmus](#6-der-matching-algorithmus)
 7. [Rechenbeispiel: Bello und Profil 17](#7-rechenbeispiel-bello-und-profil-17)
@@ -26,27 +28,27 @@ Entwicklungshinweise und Änderungsprotokoll: [context/AGENTS.md](context/AGENTS
 10. [Demodaten und Ergebnisse](#10-demodaten-und-ergebnisse)
 11. [Tests](#11-tests)
 12. [Designentscheidungen, Grenzen und Ausblick](#12-designentscheidungen-grenzen-und-ausblick)
-13. [Vorschlag für die Präsentation](#13-vorschlag-für-die-präsentation)
+13. [Gliederung für die Präsentation](#13-gliederung-für-die-präsentation)
 14. [Glossar](#14-glossar)
 
 ---
 
 ## 1. Die Idee in einem Satz
 
-Tierheime erfassen ihre Tiere, Interessenten erfassen ihre Lebenssituation – die Datenbank
-prüft **zuerst harte Ausschlusskriterien** (z. B. „Hund braucht Garten“) und berechnet für
-alle passenden Paare **einen Score von 0 bis 100 %**, der zeigt, *wie gut* Tier und Mensch
+Tierheime tragen ihre Tiere ein, Interessenten ihre Lebenssituation. Die Datenbank prüft
+zuerst harte Ausschlusskriterien (z. B. „Hund braucht Garten“) und berechnet dann für alle
+passenden Paare einen Score von 0 bis 100 %, der zeigt, wie gut Tier und Mensch
 zusammenpassen.
 
-**Warum?** Rückgaben ins Tierheim entstehen oft durch unpassende Vermittlungen
-(zu wenig Zeit, falsche Wohnsituation, Unverträglichkeit mit anderen Tieren). Ein
-transparentes Matching hilft Mitarbeitenden, gezielt die richtigen Menschen anzusprechen.
+**Warum?** Viele Tiere kommen zurück ins Tierheim, weil die Vermittlung nicht gepasst hat
+(zu wenig Zeit, falsche Wohnung, Ärger mit anderen Tieren im Haushalt). Mit einem
+nachvollziehbaren Matching können die Mitarbeitenden gezielt die richtigen Leute ansprechen.
 
-**Prinzipien**
-- **Erklärbar:** Jede Ablehnung nennt ihren Grund.
-- **Sicher vor Fehlentscheidungen:** Fehlen Angaben, wird nicht geraten, sondern „Prüfung offen“ gemeldet.
-- **Alles in SQL:** Tabellen, Views, Prozeduren und Trigger – keine zusätzliche Anwendung nötig.
-- **Reproduzierbar und getestet:** Eine Installationsreihenfolge, 123 automatische Tests.
+**Worauf wir geachtet haben**
+- Jede Ablehnung hat einen Grund, den man sich anzeigen lassen kann.
+- Fehlen Angaben, wird nicht geraten, sondern „Prüfung offen“ gemeldet.
+- Alles läuft in SQL (Tabellen, Views, Prozeduren, Trigger), es braucht keine extra Anwendung.
+- Es gibt eine feste Installationsreihenfolge und 123 automatische Tests.
 
 ---
 
@@ -54,18 +56,18 @@ transparentes Matching hilft Mitarbeitenden, gezielt die richtigen Menschen anzu
 
 | Kennzahl | Wert |
 |---|---|
-| Tabellen | **32** |
-| Views (Sichten) | **6** |
-| Gespeicherte Prozeduren | **4** |
-| Gespeicherte Funktionen | **4** |
-| Trigger | **6** |
-| Harte Kriterien | **19** |
-| Gewichtete Score-Kategorien | **9** |
+| Tabellen | 32 |
+| Views (Sichten) | 6 |
+| Gespeicherte Prozeduren | 4 |
+| Gespeicherte Funktionen | 4 |
+| Trigger | 6 |
+| Harte Kriterien | 19 |
+| Gewichtete Score-Kategorien | 9 |
 | Orte | Berlin mit 12 Bezirken und 96 Ortsteilen (vorbereitet für ganz Deutschland) |
 | Demo: Tiere / Interessenten / Tierheime | 20 / 20 / 5 |
 | Demo: geprüfte Tier-Mensch-Paare | 400 |
-| Demo: Vorschläge | 42 (Score 68,3 – 96,0 %, Ø 91,4 %) |
-| Automatische Tests | 123 (30 Matching + 43 Prozesse + 50 Orte), alle bestanden |
+| Demo: Vorschläge | 42 (Score 68,3 bis 96,0 %, im Schnitt 91,4 %) |
+| Automatische Tests | 123 (50 Orte, 30 Matching, 43 Prozeduren), alle bestanden |
 | Getestet auf | MySQL Community Server 8.4.13 |
 
 ---
@@ -73,49 +75,50 @@ transparentes Matching hilft Mitarbeitenden, gezielt die richtigen Menschen anzu
 ## 3. Aufbau des Repositories und Installation
 
 ```
-README.md                    <- dieses Dokument
-context/AGENTS.md            <- Entwicklungshinweise (Konventionen, Änderungsprotokoll)
+README.md                    <- diese Datei
+context/AGENTS.md            <- Konventionen und Änderungsprotokoll
 paws_and_match/
   README.md                  <- Installationsreihenfolge (Kurzfassung)
-  01_grundlage/              <- Datenbank, Orte, Basistabellen, Trigger, Vermittlung, Stammdaten
+  01_grundlage/              <- Datenbank, Orte, Basistabellen mit Triggern, Stammdaten
   02_profil_ergaenzungen/    <- erweiterte Tier- und Interessentenprofile
-  03_demo_daten/             <- fiktive Beispieldaten
+  03_demo_daten/             <- ausgedachte Beispieldaten
   04_matching/               <- Matching: Entscheidung, Score, Vorschläge
-  05_prozeduren/             <- Vorschlags- und Löschprozeduren
+  05_prozeduren/             <- Vorschläge, Vermittlung, Löschen
   06_ausgabe/                <- Beispielausgabe für einen Interessenten
   07_tests/                  <- automatische Tests
 ```
 
-**Installation:** Die 17 SQL-Dateien in der Reihenfolge aus
-[paws_and_match/README.md](paws_and_match/README.md) in *einer* Sitzung ausführen
-(MySQL Workbench oder `mysql`-Konsole, Zeichensatz UTF-8). Voraussetzung: MySQL 8.0.16 oder neuer.
+**Installation:** Die 18 SQL-Dateien in der Reihenfolge aus
+[paws_and_match/README.md](paws_and_match/README.md) in einer Sitzung ausführen
+(MySQL Workbench oder `mysql`-Konsole, Zeichensatz UTF-8). Man braucht MySQL 8.0.16 oder neuer.
 
-> ⚠️ Schritt 1 löscht eine vorhandene Datenbank `paws_match` und legt sie neu an.
-> So ist die Installation jederzeit wiederholbar.
+**Achtung:** Schritt 1 löscht eine vorhandene Datenbank `paws_match` und legt sie neu an.
+Dadurch kann man die Installation beliebig oft wiederholen.
 
 | Schritt | Datei | Was passiert |
 |---|---|---|
 | 1 | `01_grundlage/01_datenbank_anlegen.sql` | Datenbank neu anlegen (UTF-8) |
 | 2 | `01_grundlage/02_orte_anlegen.sql` | Bundesländer, Berlin, Bezirke, Ortsteile, Bezirkserkennung |
-| 3 | `01_grundlage/03_tabellen_anlegen.sql` | 17 Basistabellen, 2 Trigger, `sp_vermitteln` |
+| 3 | `01_grundlage/03_tabellen_anlegen.sql` | 17 Basistabellen und 2 Trigger |
 | 4 | `01_grundlage/04_stammdaten_anlegen.sql` | Tierarten, Charaktereigenschaften, Bedürfnisse |
 | 5 | `02_profil_ergaenzungen/01_tierprofile_ergaenzen.sql` | Rasse, Größe, Pflegeaufwand, Gesundheit, Kleintierverträglichkeit |
 | 6 | `02_profil_ergaenzungen/02_interessentenprofile_ergaenzen.sql` | Wohnform, Balkon, Arbeitsmodell, Wünsche, Erfahrung |
 | 7 | `03_demo_daten/01_demo_profile.sql` | 20 Tiere, 20 Interessenten, Bewerbungen, Termine |
-| 8 | `04_matching/01_matching_entscheidung.sql` | View: harte Kriterien |
-| 9 | `04_matching/02_matching_score.sql` | Gewichtung + Views: Kriterien und Score |
-| 10 | `04_matching/03_matching_vorschlaege.sql` | View: Vorschlagsliste |
-| 11 | `05_prozeduren/01_tier_vorschlaege.sql` | Tiervorschläge für einen Interessenten |
-| 12 | `05_prozeduren/02_interessenten_vorschlaege.sql` | Interessentenvorschläge für ein Tier |
-| 13 | `05_prozeduren/03_interessent_loeschen.sql` | Löschen bzw. Anonymisieren |
-| 14 | `06_ausgabe/01_matching_ausgabe.sql` | Ergebnisübersicht für Profil 17 |
-| 15 | `07_tests/01_matching_tests.sql` | 30 Tests zum Matching |
-| 16 | `07_tests/02_prozedur_tests.sql` | 43 Tests zu Prozeduren und Prozessen |
-| 17 | `07_tests/03_orts_tests.sql` | 50 Tests zu Orten und Bezirkserkennung |
+| 8 | `04_matching/01_matching_entscheidung.sql` | View für die harten Kriterien |
+| 9 | `04_matching/02_matching_score.sql` | Gewichtung und Views für Kriterien und Score |
+| 10 | `04_matching/03_matching_vorschlaege.sql` | View mit allen Vorschlägen |
+| 11 | `05_prozeduren/01_vorschlaege_fuer_interessent.sql` | passende Tiere für einen Interessenten |
+| 12 | `05_prozeduren/02_vorschlaege_fuer_tier.sql` | passende Interessenten für ein Tier |
+| 13 | `05_prozeduren/03_vermitteln.sql` | Vermittlung abschließen |
+| 14 | `05_prozeduren/04_interessent_loeschen.sql` | Löschen oder Anonymisieren |
+| 15 | `06_ausgabe/01_matching_ausgabe.sql` | Ergebnisübersicht für Profil 17 |
+| 16 | `07_tests/01_orts_tests.sql` | 50 Tests zu Orten und Bezirkserkennung |
+| 17 | `07_tests/02_matching_tests.sql` | 30 Tests zum Matching |
+| 18 | `07_tests/03_prozedur_tests.sql` | 43 Tests zu Vorschlägen, Vermittlung und Löschen |
 
 ---
 
-## 4. Datenmodell – alle Tabellen
+## 4. Datenmodell: alle Tabellen
 
 ### 4.1 Überblick (ER-Diagramm)
 
@@ -168,7 +171,7 @@ erDiagram
     mitarbeiter ||--o{ vermittlung : schliesst_ab
 ```
 
-Die 32 Tabellen lassen sich in **sieben Gruppen** einteilen:
+Die 32 Tabellen haben wir in sieben Gruppen eingeteilt:
 
 | Gruppe | Tabellen | Anzahl |
 |---|---|---|
@@ -176,16 +179,16 @@ Die 32 Tabellen lassen sich in **sieben Gruppen** einteilen:
 | B. Kataloge (Auswahllisten) | `tierart`, `charakter`, `beduerfnis`, `tier_rasse`, `tier_groesse`, `pflegeaufwand`, `gesundheitsmerkmal`, `wohnform`, `arbeitsmodell` | 9 |
 | C. Profile | `tier`, `interessent` | 2 |
 | D. Zuordnungen (n:m) | `tier_charakter`, `tier_beduerfnis`, `tier_gesundheit`, `interessent_tierart`, `interessent_charakter`, `interessent_beduerfnis`, `interessent_groesse`, `interessent_standort`, `interessent_tiererfahrung` | 9 |
-| E. Prozess | `merkliste`, `bewerbung`, `termin`, `vermittlung` | 4 |
-| F. Konfiguration | `matching_gewichtung` | 1 |
+| E. Ablauf der Vermittlung | `merkliste`, `bewerbung`, `termin`, `vermittlung` | 4 |
+| F. Einstellungen | `matching_gewichtung` | 1 |
 | G. Orte | `bundesland`, `ort`, `bezirk`, `bezirk_alias` | 4 |
 
-Abkürzungen: **PK** = Primärschlüssel, **FK** = Fremdschlüssel, **UQ** = eindeutig.
-`BOOLEAN` bedeutet 1 = ja, 0 = nein, `NULL` = unbekannt.
+Abkürzungen: PK = Primärschlüssel, FK = Fremdschlüssel, UQ = eindeutig.
+`BOOLEAN` heißt 1 = ja, 0 = nein, `NULL` = unbekannt.
 
-### 4.2 Gruppe A – Organisation
+### 4.2 Gruppe A: Organisation
 
-**`tierheim`** – ein Tierschutzverein bzw. Träger
+**`tierheim`**: ein Tierschutzverein bzw. Träger
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|
@@ -193,7 +196,7 @@ Abkürzungen: **PK** = Primärschlüssel, **FK** = Fremdschlüssel, **UQ** = ein
 | name | VARCHAR | Name des Tierheims |
 | email | VARCHAR, UQ | Kontakt (Format geprüft) |
 
-**`standort`** – Gebäude/Filiale eines Tierheims
+**`standort`**: Gebäude bzw. Filiale eines Tierheims
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|
@@ -203,7 +206,7 @@ Abkürzungen: **PK** = Primärschlüssel, **FK** = Fremdschlüssel, **UQ** = ein
 | bezirk_id | FK → bezirk | Bezirk aus der Auswahlliste (wichtig für „Nähe“) |
 | kapazitaet | INT > 0 | Plätze für Tiere |
 
-**`mitarbeiter`** – Beschäftigte eines Standorts
+**`mitarbeiter`**: Beschäftigte eines Standorts
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|
@@ -211,7 +214,7 @@ Abkürzungen: **PK** = Primärschlüssel, **FK** = Fremdschlüssel, **UQ** = ein
 | standort_id | FK → standort | Arbeitsort (darf nur Tiere dieses Standorts vermitteln) |
 | name, email | VARCHAR | Kontakt, E-Mail eindeutig |
 
-### 4.3 Gruppe B – Kataloge
+### 4.3 Gruppe B: Kataloge
 
 | Tabelle | Spalten | Inhalt (Stammdaten) |
 |---|---|---|
@@ -225,12 +228,12 @@ Abkürzungen: **PK** = Primärschlüssel, **FK** = Fremdschlüssel, **UQ** = ein
 | `wohnform` | id, name | Wohnung, Haus, Reihenhaus, WG, sonstige |
 | `arbeitsmodell` | id, name | vor Ort, zu Hause, hybrid, wechselnde Zeiten, keine Erwerbstätigkeit |
 
-Der **Rang** bei Größe und Pflegeaufwand erlaubt Vergleiche („Pflegeaufwand des Tieres
-höher als die Bereitschaft des Menschen?“).
+Über den Rang bei Größe und Pflegeaufwand kann man vergleichen, z. B. ob der Pflegeaufwand
+eines Tieres höher ist als das, was jemand leisten möchte.
 
-### 4.4 Gruppe C – Profile
+### 4.4 Gruppe C: Profile
 
-**`tier`** – ein Tier im Tierheim (Anforderungen des Tieres an sein neues Zuhause)
+**`tier`**: ein Tier im Tierheim und was es von seinem neuen Zuhause braucht
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|
@@ -242,7 +245,7 @@ höher als die Bereitschaft des Menschen?“).
 | geburtsdatum, geburt_geschaetzt | DATE, BOOLEAN | Alter (ggf. geschätzt) |
 | geschlecht | ENUM | weiblich / männlich / unbekannt |
 | gewicht_kg, beschreibung, foto_url | | Beschreibende Angaben |
-| status | ENUM | **verfuegbar**, reserviert, vermittelt, nicht_vermittelbar |
+| status | ENUM | verfuegbar, reserviert, vermittelt, nicht_vermittelbar |
 | aktivitaet | 1–5 | Energielevel (1 = ruhig, 5 = sehr aktiv) |
 | groesse_id | FK → tier_groesse | klein / mittel / groß |
 | pflegeaufwand_id | FK → pflegeaufwand | niedrig / mittel / hoch |
@@ -256,7 +259,7 @@ höher als die Bereitschaft des Menschen?“).
 | monatskosten | € | erwartete Kosten pro Monat |
 | medizin_noetig | BOOLEAN | medizinische Versorgung nötig |
 
-**`interessent`** – ein Mensch, der ein Tier aufnehmen möchte (seine Lebenssituation)
+**`interessent`**: ein Mensch, der ein Tier aufnehmen möchte, und seine Lebenssituation
 
 | Spalte | Typ | Bedeutung |
 |---|---|---|
@@ -281,41 +284,41 @@ höher als die Bereitschaft des Menschen?“).
 | aktivitaet | 1–5 | eigenes Aktivitätslevel |
 | wunschalter_min, wunschalter_max | Jahre | gewünschtes Alter des Tieres |
 
-### 4.5 Gruppe D – Zuordnungen (n:m-Beziehungen)
+### 4.5 Gruppe D: Zuordnungen (n:m-Beziehungen)
 
-Ein Tier kann mehrere Charakterzüge haben, ein Mensch mehrere Wünsche – dafür gibt es
-Zuordnungstabellen. Der Primärschlüssel ist jeweils die Kombination beider IDs.
+Ein Tier kann mehrere Charakterzüge haben und ein Mensch mehrere Wünsche. Dafür gibt es
+Zuordnungstabellen, deren Primärschlüssel aus beiden IDs besteht.
 
 | Tabelle | Bedeutung | Zusatzspalten |
 |---|---|---|
-| `tier_charakter` | Charakter des Tieres | – |
+| `tier_charakter` | Charakter des Tieres | keine |
 | `tier_beduerfnis` | verbindliche Bedürfnisse des Tieres | hinweis |
 | `tier_gesundheit` | Gesundheitsmerkmale | bestaetigt, geprueft_am, hinweis |
-| `interessent_tierart` | gewünschte Tierarten | – |
-| `interessent_charakter` | gewünschte Charakterzüge | – |
+| `interessent_tierart` | gewünschte Tierarten | keine |
+| `interessent_charakter` | gewünschte Charakterzüge | keine |
 | `interessent_beduerfnis` | Zusage zu einem Bedürfnis | bestaetigt (1 = ja, 0 = abgelehnt) |
-| `interessent_groesse` | gewünschte Größen | – |
-| `interessent_standort` | bevorzugte Standorte | – |
+| `interessent_groesse` | gewünschte Größen | keine |
+| `interessent_standort` | bevorzugte Standorte | keine |
 | `interessent_tiererfahrung` | Erfahrung je Tierart | erfahrungslevel 0–5 |
 
-Wird ein Tier oder Interessent gelöscht, werden diese abhängigen Einträge automatisch
-mitgelöscht (**ON DELETE CASCADE**).
+Wird ein Tier oder Interessent gelöscht, verschwinden diese Einträge automatisch mit
+(ON DELETE CASCADE).
 
-### 4.6 Gruppe E – Prozess
+### 4.6 Gruppe E: Ablauf der Vermittlung
 
 | Tabelle | Bedeutung | Wichtige Spalten / Regeln |
 |---|---|---|
 | `merkliste` | Tier gemerkt | (interessent_id, tier_id), erstellt_am |
 | `bewerbung` | Bewerbung auf ein Tier | status: offen, in_pruefung, abgelehnt, zurueckgezogen, angenommen; pro Paar nur eine Bewerbung (UQ) |
 | `termin` | Gespräch, Kennenlernen, Nachkontrolle | bewerbung_id, mitarbeiter_id, zeitpunkt, art |
-| `vermittlung` | abgeschlossene Vermittlung | bewerbung_id (UQ), tier_id, mitarbeiter_id, vermittelt_am, beendet_am; berechnete Spalte `aktives_tier` sorgt dafür, dass ein Tier nur **eine aktive** Vermittlung haben kann |
+| `vermittlung` | abgeschlossene Vermittlung | bewerbung_id (UQ), tier_id, mitarbeiter_id, vermittelt_am, beendet_am; die berechnete Spalte `aktives_tier` sorgt dafür, dass ein Tier nur eine aktive Vermittlung haben kann |
 
-Diese Tabellen sind **Historie**: Sie werden nicht automatisch gelöscht und verhindern,
-dass Tiere oder Personen mit Vorgeschichte versehentlich gelöscht werden.
+Diese Tabellen sind die Historie. Sie werden nie automatisch gelöscht und verhindern, dass
+Tiere oder Personen mit Vorgeschichte aus Versehen gelöscht werden.
 
-### 4.7 Gruppe F – Konfiguration
+### 4.7 Gruppe F: Einstellungen
 
-**`matching_gewichtung`** – wie wichtig jede Score-Kategorie ist (Summe muss 100 sein)
+**`matching_gewichtung`**: wie wichtig jede Score-Kategorie ist (zusammen genau 100)
 
 | Kategorie | Gewicht |
 |---|---|
@@ -330,46 +333,47 @@ dass Tiere oder Personen mit Vorgeschichte versehentlich gelöscht werden.
 | Nähe | 5 |
 | **Summe** | **100** |
 
-Die Gewichte können geändert werden, ohne SQL-Logik anzufassen.
+Die Gewichte kann man in der Tabelle ändern, ohne an der SQL-Logik etwas anzufassen.
 
-### 4.8 Gruppe G – Orte und Bezirkserkennung
+### 4.8 Gruppe G: Orte und Bezirkserkennung
 
-Ortsangaben werden nicht als Freitext gespeichert, sondern als Verweis auf einen Eintrag
-einer festen Liste (**Dropdown**). So gibt es keine Tippfehler oder unterschiedlichen
-Schreibweisen in der Datenbank. Aufbau von groß nach klein:
+Ortsangaben speichern wir nicht als Freitext, sondern als Verweis auf einen Eintrag aus einer
+festen Liste (Dropdown). So landen keine Tippfehler oder unterschiedlichen Schreibweisen in
+der Datenbank. Aufbau von groß nach klein:
 
 | Tabelle | Spalten | Inhalt |
 |---|---|---|
 | `bundesland` | id (amtlicher Länderschlüssel), name, kuerzel | alle 16 Bundesländer |
 | `ort` | id, bundesland_id, name, ags (Amtlicher Gemeindeschlüssel), aktiv | Berlin (`11000000`), freigeschaltet |
 | `bezirk` | id, ort_id, name, schluessel, suchname | die 12 Berliner Bezirke (ID = Bezirksnummer) |
-| `bezirk_alias` | id, bezirk_id, name, suchname | 92 Einträge: Ortsteile und frühere Bezirke, z. B. Prenzlauer Berg → Pankow (alle 96 Ortsteile sind erkennbar; gleichnamige wie „Spandau“ über den Bezirksnamen) |
+| `bezirk_alias` | id, bezirk_id, name, suchname | 92 Einträge: Ortsteile und frühere Bezirke, z. B. Prenzlauer Berg gehört zu Pankow (alle 96 Ortsteile werden erkannt, gleichnamige wie „Spandau“ über den Bezirksnamen) |
 
-**Dropdown:** Die View `bezirk_auswahl` liefert alle wählbaren Bezirke
-(nur Orte mit `aktiv = 1`, aktuell Berlin).
+**Dropdown:** Die View `bezirk_auswahl` liefert alle Bezirke, die man auswählen kann
+(nur Orte mit `aktiv = 1`, im Moment also Berlin).
 
-**Freitext verstehen (z. B. beim Import echter Daten):** Die Funktion
-`fn_bezirk_id('Neuköln', NULL)` findet den passenden Bezirk in drei Schritten:
+**Freitext verstehen (z. B. wenn später echte Daten importiert werden):** Die Funktion
+`fn_bezirk_id('Neuköln', NULL)` sucht den passenden Bezirk in drei Schritten:
 
-1. **Vereinheitlichen** (`fn_text_normalisieren`): Kleinbuchstaben, ä → ae, ö → oe,
-   ü → ue, ß → ss, Leerzeichen/Bindestriche/Klammern entfernen. Ein vorangestelltes
-   „Bezirk“ wird ignoriert. „Neukölln“, „NEUKOELLN“, „neukölln “ werden alle zu `neukoelln`.
-2. **Exakt suchen:** in Bezirksnamen und Ortsteilen, auch mit Ortsnamen davor oder dahinter
-   („Berlin-Mitte“, „Lichtenberg (Berlin)“).
-3. **Tippfehler tolerieren** (`fn_levenshtein`): Der ähnlichste Name wird genommen, wenn er
-   höchstens 1 Zeichen (bei 4–5 Buchstaben) bzw. 2 Zeichen (ab 6 Buchstaben) abweicht und
-   eindeutig ist. Beispiele: „Neuköln“ → Neukölln, „Spandua“ → Spandau,
-   „NeukÃ¶lln“ (kaputte Umlaute) → Neukölln.
+1. **Vereinheitlichen** (`fn_text_normalisieren`): alles klein, ä wird ae, ö wird oe,
+   ü wird ue, ß wird ss, Leerzeichen, Bindestriche und Klammern fallen weg. Ein „Bezirk“ am
+   Anfang wird ignoriert. „Neukölln“, „NEUKOELLN“ und „neukölln “ werden so alle zu `neukoelln`.
+2. **Exakt suchen** in Bezirksnamen und Ortsteilen, auch wenn der Ortsname davor oder
+   dahinter steht („Berlin-Mitte“, „Lichtenberg (Berlin)“).
+3. **Tippfehler erlauben** (`fn_levenshtein`): Der ähnlichste Name wird genommen, wenn er
+   bei 4 bis 5 Buchstaben höchstens 1 Zeichen und ab 6 Buchstaben höchstens 2 Zeichen
+   abweicht und es nur einen solchen Treffer gibt. Beispiele: „Neuköln“ wird Neukölln,
+   „Spandua“ wird Spandau, „NeukÃ¶lln“ (kaputte Umlaute) wird Neukölln.
 
-Unbekannte oder mehrdeutige Angaben ergeben `NULL` – es wird nie geraten.
-`fn_bezirk_id_pflicht('…')` bricht stattdessen mit einer verständlichen Meldung ab
-(für Importe). Der zweite Parameter von `fn_bezirk_id` schränkt die Suche auf einen Ort ein
-– wichtig, sobald es z. B. „Mitte“ in Berlin und Hamburg gibt.
+Ist eine Angabe unbekannt oder passt sie zu mehreren Bezirken, kommt `NULL` zurück. Geraten
+wird also nie. `fn_bezirk_id_pflicht('…')` gibt in so einem Fall stattdessen eine Fehlermeldung
+aus, das ist für Importe gedacht. Mit dem zweiten Parameter von `fn_bezirk_id` kann man die
+Suche auf einen Ort beschränken. Das wird wichtig, sobald es z. B. „Mitte“ in Berlin und
+in Hamburg gibt.
 
 **Erweiterung auf ganz Deutschland:** neue Zeilen in `ort` (mit Gemeindeschlüssel aus dem
-amtlichen Gemeindeverzeichnis) und `bezirk` anlegen und `aktiv = 1` setzen. Für Orte ohne
-Bezirke wird ein Bezirk mit dem Ortsnamen angelegt. Tabellen, Matching und Erkennung
-bleiben unverändert (per Test mit Hamburg geprüft).
+amtlichen Gemeindeverzeichnis) und `bezirk` eintragen und `aktiv = 1` setzen. Orte ohne
+Bezirke bekommen einen Bezirk mit dem Ortsnamen. Tabellen, Matching und Erkennung müssen
+dafür nicht geändert werden, das haben wir in einem Test mit Hamburg ausprobiert.
 
 ---
 
@@ -400,12 +404,12 @@ stateDiagram-v2
 ```
 
 **Schutzregeln (Trigger und Prozedur)**
-- Bewerben kann man sich nur auf **verfügbare** Tiere und nur mit **aktivem** Profil.
-- Eine Vermittlung kann **nur über `sp_vermitteln`** angelegt werden (direkte Einträge werden blockiert).
-- `sp_vermitteln` prüft: Bewerbung existiert, Mitarbeiter arbeitet am Standort des Tieres,
-  Profil ist aktiv, Status passt. Alles passiert in **einer Transaktion** – bei einem
-  Fehler wird nichts gespeichert.
-- Konkurrierende offene Bewerbungen werden automatisch abgelehnt (mit Hinweis in der Notiz).
+- Bewerben kann man sich nur auf verfügbare Tiere und nur mit aktivem Profil.
+- Eine Vermittlung kann nur über `sp_vermitteln` angelegt werden, direkte Einträge werden blockiert.
+- `sp_vermitteln` prüft, ob die Bewerbung existiert, ob der Mitarbeiter am Standort des Tieres
+  arbeitet, ob das Profil aktiv ist und ob der Status passt. Alles läuft in einer Transaktion,
+  geht etwas schief, wird nichts gespeichert.
+- Andere offene Bewerbungen für dasselbe Tier werden automatisch abgelehnt (mit Hinweis in der Notiz).
 
 ---
 
@@ -424,25 +428,26 @@ flowchart TD
     S3 -->|sonst| N[kein Vorschlag]
 ```
 
-**Bildlich:** Stufe 1 ist der **Türsteher** (darf das Paar überhaupt rein?), Stufe 2 die
-**Benotung** (wie gut passt es?), Stufe 3 die **Empfehlungsliste**.
+Man kann es sich so vorstellen: Stufe 1 ist der Türsteher (darf das Paar überhaupt rein?),
+Stufe 2 die Benotung (wie gut passt es?) und Stufe 3 die Empfehlungsliste.
 
-### 6.2 Stufe 1 – Harte Kriterien (Ampel)
+### 6.2 Stufe 1: harte Kriterien (Ampel)
 
-Jedes Kriterium ergibt eine von drei Ampelfarben:
+Jedes Kriterium bekommt eine Ampelfarbe:
 
-| Ergebnis | Bedeutung |
+| Farbe | Bedeutung |
 |---|---|
-| 🟢 erfüllt | Anforderung erfüllt oder für dieses Tier nicht relevant |
-| 🟡 Prüfung offen | Angaben fehlen oder ein Bedürfnis wurde noch nicht bestätigt |
-| 🔴 ausgeschlossen | Anforderung sicher nicht erfüllt |
+| grün (erfüllt) | Anforderung erfüllt oder für dieses Tier egal |
+| gelb (Prüfung offen) | Angaben fehlen oder ein Bedürfnis ist noch nicht bestätigt |
+| rot (ausgeschlossen) | Anforderung ist sicher nicht erfüllt |
 
-**Gesamtergebnis:** Ein 🔴 → *ausgeschlossen*. Sonst ein 🟡 → *pruefung_offen*.
-Nur alles 🟢 → *geeignet*. Alle Gründe werden als Text mitgeliefert.
+Ist ein Kriterium rot, ist das Paar *ausgeschlossen*. Sonst führt ein gelbes Kriterium zu
+*pruefung_offen*. Nur wenn alles grün ist, ist das Paar *geeignet*. Die Gründe werden immer
+als Text mitgeliefert.
 
-| # | Kriterium | 🔴 Ausschluss, wenn … |
+| # | Kriterium | rot, wenn … |
 |---|---|---|
-| 1 | Tierartwunsch | die Tierart nicht zu den Wünschen gehört (keine Wünsche → 🟡) |
+| 1 | Tierartwunsch | die Tierart nicht zu den Wünschen gehört (gar keine Wünsche: gelb) |
 | 2 | Garten | Tier braucht Garten, Mensch hat keinen |
 | 3 | Treppen | Tier soll Treppen meiden, Wohnung liegt oben ohne Aufzug |
 | 4 | Kinderverträglichkeit | Kinder im Haushalt, Tier nicht kinderverträglich |
@@ -460,22 +465,22 @@ Nur alles 🟢 → *geeignet*. Alle Gründe werden als Text mitgeliefert.
 | 16 | Pflegeaufwand | Pflegeaufwand des Tieres höher als akzeptiert |
 | 17 | Gesicherter Balkon | Tier braucht gesicherten Balkon, keiner vorhanden |
 | 18 | Bedürfnis abgelehnt | Mensch hat ein Bedürfnis des Tieres ausdrücklich abgelehnt |
-| 19 | Bedürfnisse bestätigt | (nur 🟡) ein Bedürfnis des Tieres ist noch unbestätigt |
+| 19 | Bedürfnisse bestätigt | nie rot, nur gelb: ein Bedürfnis des Tieres ist noch nicht bestätigt |
 
-Bei jedem Kriterium gilt: Fehlt eine nötige Angabe, ist das Ergebnis 🟡 statt geraten.
+Für alle Kriterien gilt: Fehlt eine Angabe, die man braucht, ist das Ergebnis gelb.
 
-### 6.3 Stufe 2 – Der Score (0–100 %)
+### 6.3 Stufe 2: der Score (0 bis 100 %)
 
-Für jedes **geeignete** Paar wird jede der 9 Kategorien mit einer **Teilpassung zwischen
-0 und 1** bewertet. Der Score ist die gewichtete Summe:
+Für jedes geeignete Paar bekommt jede der 9 Kategorien einen Wert zwischen 0 und 1
+(Teilpassung). Der Score ist die gewichtete Summe:
 
 ```
 Score (%) = Σ ( Teilpassung der Kategorie × Gewicht der Kategorie )      (Gewichte = 100)
 ```
 
-**Die Grundidee – „Reserve“:** Ein harter Grenzwert sagt nur *ob*, der Score sagt *wie gut*.
-Wer die Mindestanforderung genau erfüllt, bekommt die halbe Punktzahl; wer doppelt so
-viel bietet wie nötig, bekommt die volle.
+**Die Idee dahinter („Reserve“):** Ein harter Grenzwert sagt nur, *ob* etwas reicht. Der Score
+soll zeigen, *wie gut* es passt. Wer die Mindestanforderung genau erfüllt, bekommt die halbe
+Punktzahl, wer doppelt so viel bietet wie nötig, die volle.
 
 ```
 Reserve(Wert, Mindestwert) = 0,5 + 0,5 × (Wert − Mindestwert) / Mindestwert   (begrenzt auf 0 … 1)
@@ -483,62 +488,62 @@ Reserve(Wert, Mindestwert) = 0,5 + 0,5 × (Wert − Mindestwert) / Mindestwert  
 
 | Angebot im Verhältnis zur Anforderung | Teilpassung |
 |---|---|
-| unter dem Minimum | 0 (wird aber schon in Stufe 1 ausgeschlossen) |
+| unter dem Minimum | 0 (fliegt aber schon in Stufe 1 raus) |
 | genau das Minimum (100 %) | 0,5 |
 | 150 % | 0,75 |
 | 200 % oder mehr | 1,0 |
 | Tier hat keine Anforderung (Minimum 0) | 1,0 |
 
-**Die 9 Kategorien im Detail**
+**Die 9 Kategorien**
 
-| Kategorie | Gewicht | Berechnung der Teilpassung |
+| Kategorie | Gewicht | So wird der Wert berechnet |
 |---|---|---|
-| **Tierart** | 20 | Durchschnitt aus: Tierart gewünscht (1/0), Größe (Wunschgröße = 1, eine Stufe daneben = 0,5, zwei = 0) und Alter (im Wunschbereich = 1, je Jahr Abweichung −0,2). Nicht angegebene Wünsche zählen nicht mit. |
-| **Aktivität** | 15 | 1 − \|Aktivität Tier − Aktivität Mensch\| / 4 → gleich = 1, maximal verschieden = 0 |
-| **Zeit** | 15 | Durchschnitt aus Betreuungszeit (Reserve) und Alleinzeit (genau am Maximum = 0,5, nie allein = 1) |
-| **Wohnsituation** | 15 | Reserve der Wohnfläche gegenüber der Mindestfläche |
-| **Erfahrung** | 10 | Minimum erreicht = 0,5, Höchststufe 5 = 1, linear dazwischen |
-| **Verträglichkeit** | 10 | Durchschnitt über Kinder, Hunde, Katzen, Kleintiere: verträglich = 1; unverträglich, aber nicht im Haushalt = 0,5 (schränkt die Zukunft ein) |
-| **Budget** | 5 | Reserve des Budgets gegenüber den Monatskosten |
-| **Charakter** | 5 | Anteil der Wunsch-Charakterzüge, die das Tier hat |
-| **Nähe** | 5 | Wunschstandort oder gleicher Bezirk = 1, sonst 0 |
+| Tierart | 20 | Durchschnitt aus: Tierart gewünscht (1/0), Größe (Wunschgröße = 1, eine Stufe daneben = 0,5, zwei = 0) und Alter (im Wunschbereich = 1, pro Jahr daneben 0,2 weniger). Wer keine Größe oder kein Alter angegeben hat, bei dem zählt das nicht mit. |
+| Aktivität | 15 | 1 − \|Aktivität Tier − Aktivität Mensch\| / 4, also gleich = 1 und ganz verschieden = 0 |
+| Zeit | 15 | Durchschnitt aus Betreuungszeit (Reserve) und Alleinzeit (genau am Maximum = 0,5, nie allein = 1) |
+| Wohnsituation | 15 | Reserve der Wohnfläche gegenüber der Mindestfläche |
+| Erfahrung | 10 | Minimum erreicht = 0,5, Höchststufe 5 = 1, dazwischen linear |
+| Verträglichkeit | 10 | Durchschnitt über Kinder, Hunde, Katzen, Kleintiere: verträglich = 1, unverträglich aber nicht im Haushalt = 0,5 (das schränkt später ein) |
+| Budget | 5 | Reserve des Budgets gegenüber den Monatskosten |
+| Charakter | 5 | Anteil der gewünschten Charakterzüge, die das Tier hat |
+| Nähe | 5 | Wunschstandort oder gleicher Bezirk = 1, sonst 0 |
 
-**Fehlende Angaben:** Eine Kategorie ohne Daten bringt **0 Punkte** (vorsichtige
-Bewertung). Zusätzlich zeigt die **Datenabdeckung**, welcher Anteil des Gewichts auf echten
-Daten beruht (z. B. 95 % = 5 Gewichtspunkte fehlen).
+**Fehlende Angaben:** Eine Kategorie ohne Daten gibt 0 Punkte, wir bewerten also lieber
+vorsichtig. Wie viel vom Gewicht wirklich auf Daten beruht, zeigt die Datenabdeckung
+(z. B. 95 % heißt: 5 Gewichtspunkte fehlen).
 
-**Gültige Gewichtung:** Der Score wird nur berechnet, wenn genau 9 Gewichte vorhanden
-sind und ihre Summe 100 ist – sonst gibt es keinen Score und keine Vorschläge.
+**Gültige Gewichtung:** Einen Score gibt es nur, wenn genau 9 Gewichte da sind und sie
+zusammen 100 ergeben. Sonst gibt es weder Score noch Vorschläge.
 
-### 6.4 Stufe 3 – Vorschläge
+### 6.4 Stufe 3: Vorschläge
 
-Ein Paar wird vorgeschlagen, wenn **alle** Bedingungen gelten:
+Ein Paar wird vorgeschlagen, wenn alles davon zutrifft:
 
-1. Eignung = *geeignet* (alle 19 Kriterien 🟢)
-2. Tier ist *verfügbar*
-3. Interessentenprofil ist *aktiv*
-4. Gewichtung gültig
-5. **Score ≥ 50 %**
+1. Eignung = *geeignet* (alle 19 Kriterien grün)
+2. das Tier ist *verfügbar*
+3. das Interessentenprofil ist *aktiv*
+4. die Gewichtung ist gültig
+5. der Score ist mindestens 50 %
 
-Sortiert wird nach Score (absteigend), dann nach Datenabdeckung.
-Diese Regeln stehen **an genau einer Stelle** (View `matching_vorschlaege`) – Prozeduren,
-Ausgabe und Tests verwenden alle dieselbe Quelle.
+Sortiert wird nach Score (höchster zuerst) und dann nach Datenabdeckung.
+Diese Regeln stehen nur an einer Stelle, in der View `matching_vorschlaege`. Prozeduren,
+Ausgabe und Tests benutzen alle diese View.
 
 ---
 
 ## 7. Rechenbeispiel: Bello und Profil 17
 
 **Bello** (Hund, groß, ca. 6 Jahre, Standort Mitte): sehr aktiv (5), braucht 70 m² und
-einen Garten, mindestens 3 h Betreuung, höchstens 4 h allein, Hundeerfahrung ≥ 3,
-350 €/Monat, verträglich mit Kindern und Hunden, **nicht** mit Katzen und Kleintieren,
-Charakter: verspielt und aktiv, Bedürfnis: täglicher Auslauf.
+einen Garten, mindestens 3 h Betreuung, höchstens 4 h allein, Hundeerfahrung ab 3,
+350 € im Monat, verträglich mit Kindern und Hunden, aber nicht mit Katzen und Kleintieren,
+Charakter verspielt und aktiv, Bedürfnis täglicher Auslauf.
 
 **Profil 17** (Pankow): 100 m² mit Garten, Kinder und ein Hund im Haushalt, 8 h Zeit,
 3 h allein, Budget 500 €, Aktivität 4, Hundeerfahrung 4, wünscht Hund oder Kaninchen,
 Größe mittel/groß, Alter 1–12 Jahre, Charakter verspielt und kontaktfreudig,
 Wunschstandort Mitte, hat „täglicher Auslauf“ bestätigt.
 
-**Stufe 1:** alle 19 Kriterien 🟢 → *geeignet*.
+**Stufe 1:** alle 19 Kriterien sind grün, das Paar ist also *geeignet*.
 
 **Stufe 2:**
 
@@ -546,25 +551,26 @@ Wunschstandort Mitte, hat „täglicher Auslauf“ bestätigt.
 |---|---|---|---|---|
 | Tierart | Hund gewünscht (1), groß gewünscht (1), Alter passt (1) | 1,00 | 20 | 20,00 |
 | Aktivität | 1 − \|5 − 4\| / 4 | 0,75 | 15 | 11,25 |
-| Zeit | Betreuung 8 h vs. 3 h → 1,0; allein 3 h von max. 4 h → 0,625; Ø | 0,81 | 15 | 12,19 |
+| Zeit | Betreuung 8 h statt 3 h = 1,0; allein 3 h von max. 4 h = 0,625; Durchschnitt | 0,81 | 15 | 12,19 |
 | Wohnsituation | 0,5 + 0,5 × (100 − 70) / 70 | 0,71 | 15 | 10,71 |
 | Erfahrung | 0,5 + 0,5 × (4 − 3) / (5 − 3) | 0,75 | 10 | 7,50 |
-| Verträglichkeit | Kinder 1, Hund 1, Katze 0,5, Kleintiere 0,5 → Ø | 0,75 | 10 | 7,50 |
+| Verträglichkeit | Kinder 1, Hund 1, Katze 0,5, Kleintiere 0,5; Durchschnitt | 0,75 | 10 | 7,50 |
 | Budget | 0,5 + 0,5 × (500 − 350) / 350 | 0,71 | 5 | 3,57 |
 | Charakter | 1 von 2 Wünschen (verspielt) | 0,50 | 5 | 2,50 |
 | Nähe | Wunschstandort Mitte | 1,00 | 5 | 5,00 |
 | **Summe** | | | **100** | **≈ 80,2 %** |
 
-**Stufe 3:** 80,2 % ≥ 50 %, Bello verfügbar, Profil aktiv → **Vorschlag**.
+**Stufe 3:** 80,2 % ist mehr als 50 %, Bello ist verfügbar und das Profil aktiv, also gibt es
+einen Vorschlag.
 
-**Gegenbeispiel Profil 19** (wünscht ebenfalls Hund): hat eine Katze und nur
-Hundeerfahrung 2 → 🔴 *Katzenverträglichkeit* und 🔴 *Tierartspezifische Erfahrung* →
-ausgeschlossen, Score 0 %, beide Gründe werden angezeigt.
+**Gegenbeispiel Profil 19** (möchte auch einen Hund): hat eine Katze und nur
+Hundeerfahrung 2. Damit sind *Katzenverträglichkeit* und *Tierartspezifische Erfahrung* rot,
+das Paar ist ausgeschlossen (Score 0 %) und beide Gründe werden angezeigt.
 
-**Weitere Vergleichswerte aus den Tests**
-- Profil 1 und Bruno (fast ideale Passung): **96,0 %**
-- Profil 17 und Bello, wenn alle Werte genau auf dem Minimum liegen: **57,5 %**
-  (geeignet, aber knapp – genau das soll der Score zeigen)
+**Weitere Werte aus den Tests**
+- Profil 1 und Bruno (passt fast perfekt): 96,0 %
+- Profil 17 und Bello, wenn alle Werte genau auf dem Minimum liegen: 57,5 %
+  (geeignet, aber knapp, und genau das soll der Score zeigen)
 
 ---
 
@@ -590,8 +596,8 @@ ausgeschlossen, Score 0 %, beide Gründe werden angezeigt.
 | `sp_vermitteln` | `CALL sp_vermitteln(bewerbung_id, mitarbeiter_id);` | schließt eine Vermittlung sicher ab |
 | `sp_interessent_loeschen` | `CALL sp_interessent_loeschen(id, @ergebnis);` | `geloescht` oder `anonymisiert` |
 
-Die Vorschlagsprozeduren melden verständliche Fehler, z. B. „Interessentenprofil nicht
-gefunden“, „Tier ist aktuell nicht für neue Vorschläge verfügbar“ oder „Die neun
+Die Vorschlagsprozeduren geben verständliche Fehlermeldungen aus, z. B. „Interessentenprofil
+nicht gefunden“, „Tier ist aktuell nicht für neue Vorschläge verfügbar“ oder „Die neun
 Matching-Gewichte müssen vollständig sein und 100 ergeben“.
 
 ### Gespeicherte Funktionen
@@ -614,35 +620,36 @@ Matching-Gewichte müssen vollständig sein und 100 ergeben“.
 
 ### Beispielausgabe
 
-`06_ausgabe/01_matching_ausgabe.sql` zeigt für Profil 17 **alle** 20 Tiere mit Status:
+`06_ausgabe/01_matching_ausgabe.sql` zeigt für Profil 17 alle 20 Tiere mit Status:
 „Als Vorschlag anzeigen“, „Kein Vorschlag: Ausschlusskriterium“, „… Angaben prüfen“,
 „… Tier nicht verfügbar“, „… Profil inaktiv“, „… Gewichtung unvollständig“ oder
-„… Mindestscore nicht erreicht“ – jeweils mit Begründung.
+„… Mindestscore nicht erreicht“, jeweils mit Begründung.
 
 ---
 
 ## 9. Datenqualität, Datenschutz und Löschkonzept
 
-**Datenqualität (CHECK-Constraints)** – ungültige Werte werden direkt abgewiesen:
-- Wertebereiche: Aktivität 1–5, Erfahrung 0–5, Stunden 0–24, Flächen/Kosten ≥ 0, Kapazität > 0
+**Datenqualität (CHECK-Constraints):** Ungültige Werte werden gar nicht erst gespeichert.
+- Wertebereiche: Aktivität 1 bis 5, Erfahrung 0 bis 5, Stunden 0 bis 24, Flächen und Kosten
+  nicht negativ, Kapazität größer 0
 - Ja/Nein-Felder nur 0 oder 1
 - E-Mail-Adressen im Format `x@y.z`
-- Betreuungszeit + Alleinzeit ≤ 24 Stunden (Tier und Mensch)
-- Gewünschtes Mindestalter ≤ Höchstalter; gesicherter Balkon nur mit Balkon
-- Rasse muss zur Tierart passen
-- Bezirke nur aus der Auswahlliste (aktuell Berlin); derselbe Bezirk kann nicht in zweiter
-  Schreibweise angelegt werden (z. B. „Neukoelln“ neben „Neukölln“)
+- Betreuungszeit plus Alleinzeit höchstens 24 Stunden (bei Tier und Mensch)
+- gewünschtes Mindestalter nicht über dem Höchstalter, gesicherter Balkon nur mit Balkon
+- die Rasse muss zur Tierart passen
+- Bezirke nur aus der Auswahlliste (im Moment Berlin). Derselbe Bezirk kann nicht ein
+  zweites Mal in anderer Schreibweise angelegt werden (z. B. „Neukoelln“ neben „Neukölln“)
 
 **Datenschutz**
-- Interessenten erscheinen mit **Pseudonym**, nicht mit Klarnamen.
-- Alle Demodaten sind fiktiv (`example.org`-Adressen).
+- Interessenten tauchen nur mit Pseudonym auf, nicht mit ihrem echten Namen.
+- Alle Demodaten sind ausgedacht (Adressen mit `example.org`).
 
 **Löschkonzept**
 
 | Fall | Verhalten |
 |---|---|
-| Interessent **ohne** Bewerbungen | wird gelöscht, inklusive Wünschen, Merkliste usw. (Cascade) |
-| Interessent **mit** Bewerbungen | wird **anonymisiert**: Name/E-Mail ersetzt, Profildaten geleert, offene Bewerbungen zurückgezogen, Historie bleibt für das Tierheim erhalten |
+| Interessent ohne Bewerbungen | wird gelöscht, mit Wünschen, Merkliste usw. (Cascade) |
+| Interessent mit Bewerbungen | wird anonymisiert: Name und E-Mail ersetzt, Profildaten geleert, offene Bewerbungen zurückgezogen. Die Historie bleibt für das Tierheim erhalten |
 | Tier ohne Vorgeschichte | löschbar, Charakter/Bedürfnisse/Merkliste werden mitgelöscht |
 | Tier mit Bewerbungen/Vermittlungen | nicht löschbar (Historie geschützt) |
 
@@ -650,27 +657,27 @@ Matching-Gewichte müssen vollständig sein und 100 ergeben“.
 
 ## 10. Demodaten und Ergebnisse
 
-Die Demodaten (alle fiktiv) bestehen aus 5 Tierheimen mit je einem Standort in Mitte,
-Pankow, Spandau, Neukölln und Lichtenberg, 20 Tieren (Hunde, Katzen, Kaninchen,
-Meerschweinchen, Vögel) und 20 Interessentenprofilen. Sie enthalten absichtlich
-**positive und negative Fälle**, damit jede Regel sichtbar wird. Die Bezirke der Demodaten
-sind wie bei einem Import in unterschiedlichen Schreibweisen angegeben (z. B. „neukolln“,
-„Berlin-Mitte“, „Prenzlauer Berg“, „Spandua“) und werden automatisch zugeordnet.
+Die Demodaten sind komplett ausgedacht: 5 Tierheime mit je einem Standort in Mitte,
+Pankow, Spandau, Neukölln und Lichtenberg, 20 Tiere (Hunde, Katzen, Kaninchen,
+Meerschweinchen, Vögel) und 20 Interessentenprofile. Wir haben absichtlich passende und
+unpassende Fälle eingebaut, damit man jede Regel einmal sieht. Die Bezirke sind wie bei einem
+Import unterschiedlich geschrieben (z. B. „neukolln“, „Berlin-Mitte“, „Prenzlauer Berg“,
+„Spandua“) und werden automatisch zugeordnet.
 
 **Ergebnis über alle 400 Paare**
 
 | Eignung | Paare | Anteil |
 |---|---|---|
-| 🟢 geeignet | 42 | 10,5 % |
-| 🟡 Prüfung offen | 30 | 7,5 % |
-| 🔴 ausgeschlossen | 328 | 82,0 % |
+| geeignet | 42 | 10,5 % |
+| Prüfung offen | 30 | 7,5 % |
+| ausgeschlossen | 328 | 82,0 % |
 
-Alle 42 geeigneten Paare erreichen mindestens 50 % und werden vorgeschlagen
-(Score 68,3 – 96,0 %, Durchschnitt 91,4 %). **16 von 20** Profilen erhalten mindestens
-einen Vorschlag. Dass die meisten Paare ausgeschlossen sind, ist gewollt: Schon der
-Tierartwunsch filtert den Großteil heraus (wer eine Katze sucht, bekommt keinen Hund).
+Alle 42 geeigneten Paare haben mindestens 50 % und werden vorgeschlagen
+(Score 68,3 bis 96,0 %, im Schnitt 91,4 %). 16 von 20 Profilen bekommen mindestens einen
+Vorschlag. Dass die meisten Paare rausfallen, ist so gewollt: Schon der Tierartwunsch
+sortiert das meiste aus (wer eine Katze sucht, bekommt keinen Hund).
 
-**Bewusst eingebaute Fälle**
+**Absichtlich eingebaute Fälle**
 
 | Profil / Tier | Ergebnis | Warum |
 |---|---|---|
@@ -684,91 +691,91 @@ Tierartwunsch filtert den Großteil heraus (wer eine Katze sucht, bekommt keinen
 | 6 / Bruno | Prüfung offen | Bedürfnis „Medikamentengabe“ noch nicht bestätigt |
 | 13 / Flocke | Prüfung offen | Kaninchen-Erfahrung nicht angegeben |
 
-**Vorschläge für Profil 17** (Ausgabe der Prozedur): Balu 80,3 % · Oskar 80,3 % ·
-Bello 80,2 % · Momo 76,9 % · Wolke 76,9 %.
+**Vorschläge für Profil 17** (so gibt die Prozedur sie aus): Balu 80,3 %, Oskar 80,3 %,
+Bello 80,2 %, Momo 76,9 %, Wolke 76,9 %.
 
 ---
 
 ## 11. Tests
 
-Drei Testskripte prüfen alles **automatisch** und enden mit
-„ALLE … TESTS BESTANDEN“. Sie verändern die Demodaten nicht (Änderungen werden
-zurückgerollt bzw. mit eigenen Testdaten gemacht und danach entfernt – das wird per
-Prüfsumme kontrolliert).
+Drei Testskripte prüfen alles automatisch und schreiben am Ende
+„ALLE … TESTS BESTANDEN“. Die Demodaten bleiben dabei gleich: Änderungen werden
+zurückgerollt oder mit eigenen Testdaten gemacht, die danach wieder gelöscht werden. Am
+Ende wird über eine Prüfsumme kontrolliert, dass wirklich alles wie vorher ist.
 
-| Bereich | Beispiele | Anzahl |
-|---|---|---|
-| Struktur | 9 Gewichte mit Summe 100, alle 400 Paare bewertet, Teilpassungen 0–1 | 6 |
-| Entscheidungen | 11 bekannte Paare mit erwarteter Eignung und Begründung | 11 |
-| Scores | 96,0 / 80,2 / 76,9 % von Hand nachgerechnet | 3 |
-| Abgestufter Score | weniger Wohnfläche senkt, mehr Budget erhöht den Score; Minimum = 57,5 % | 3 |
-| Fehlende Daten | ohne Charakterwünsche 77,7 % und 95 % Abdeckung | 1 |
-| Gewichtung | Summe 105 oder fehlendes Gewicht → kein Score | 2 |
-| Datenqualität | ungültige Werte werden abgewiesen | 4 |
-| Vorschläge | Rangfolge, Vollständigkeit, Prozeduren nutzen dieselbe View | 7 |
-| Fehlerfälle Vorschläge | ungültige/unbekannte IDs, inaktiv, nicht verfügbar, falsche Gewichte | 15 |
-| Vermittlung | falscher Mitarbeiter, Rollback, Trigger, Erfolg, Ablehnung der Konkurrenz | 11 |
-| Löschen | Anonymisieren, Löschen, Cascade, geschützte Historie | 9 |
-| Unverändert | Demodaten nach den Tests identisch | 1 |
-| Orte: Hilfsfunktionen | Vereinheitlichung, Levenshtein-Distanz | 3 |
-| Orte: Stammdaten | 16 Länder, 12 Bezirke, jeder Bezirk/Ortsteil eindeutig erkennbar | 3 |
-| Orte: Freitext | 32 Schreibweisen mit Umlauten, Tippfehlern, Ortsteilen, Unbekanntem; Ortseinschränkung | 33 |
-| Orte: Demodaten | alle Bezirke korrekt zugeordnet | 2 |
-| Orte: Erweiterung | Ort abschalten, Hamburg ergänzen, mehrdeutiges „Mitte“ | 4 |
-| Orte: Datenqualität | doppelte Schreibweise, Profil ohne Bezirk, unbekannter Bezirk, Import-Fehler | 5 |
-| **Summe** | | **123** |
+| Datei | Bereich | Beispiele | Anzahl |
+|---|---|---|---|
+| 01_orts_tests | Hilfsfunktionen | Vereinheitlichung, Levenshtein-Distanz | 3 |
+| 01_orts_tests | Stammdaten | 16 Länder, 12 Bezirke, jeder Bezirk/Ortsteil eindeutig erkennbar | 3 |
+| 01_orts_tests | Freitext | 32 Schreibweisen mit Umlauten, Tippfehlern, Ortsteilen, Unbekanntem; Suche nur in einem Ort | 33 |
+| 01_orts_tests | Demodaten | alle Bezirke richtig zugeordnet | 2 |
+| 01_orts_tests | Erweiterung | Ort abschalten, Hamburg ergänzen, „Mitte“ in zwei Städten | 4 |
+| 01_orts_tests | Datenqualität | doppelte Schreibweise, Profil ohne Bezirk, unbekannter Bezirk, Importfehler | 5 |
+| 02_matching_tests | Struktur | 9 Gewichte mit Summe 100, alle 400 Paare bewertet, Werte zwischen 0 und 1 | 6 |
+| 02_matching_tests | Entscheidungen | 11 bekannte Paare mit erwarteter Eignung und Begründung | 11 |
+| 02_matching_tests | Scores | 96,0 / 80,2 / 76,9 %, vorher von Hand ausgerechnet | 3 |
+| 02_matching_tests | Abgestufter Score | weniger Wohnfläche senkt, mehr Budget erhöht den Score, Minimum = 57,5 % | 3 |
+| 02_matching_tests | Fehlende Daten | ohne Charakterwünsche 77,7 % und 95 % Abdeckung | 1 |
+| 02_matching_tests | Gewichtung | Summe 105 oder fehlendes Gewicht: kein Score | 2 |
+| 02_matching_tests | Datenqualität | ungültige Werte werden abgelehnt | 4 |
+| 03_prozedur_tests | Vorschläge | Reihenfolge, Vollständigkeit, beide Prozeduren nutzen dieselbe View | 7 |
+| 03_prozedur_tests | Fehlerfälle Vorschläge | falsche/unbekannte IDs, inaktiv, nicht verfügbar, falsche Gewichte | 15 |
+| 03_prozedur_tests | Vermittlung | falscher Mitarbeiter, Rollback, Trigger, Erfolg, andere Bewerbungen abgelehnt | 11 |
+| 03_prozedur_tests | Löschen | Anonymisieren, Löschen, Cascade, geschützte Historie | 9 |
+| 03_prozedur_tests | Unverändert | Demodaten nach den Tests gleich | 1 |
+| | **Summe** | | **123** |
 
 ---
 
 ## 12. Designentscheidungen, Grenzen und Ausblick
 
-**Warum zwei Stufen (Ausschluss + Score)?**
-Ein reiner Score könnte ein ungeeignetes Paar durch viele gute Werte „schönrechnen“
-(z. B. viel Budget gleicht fehlenden Garten aus). Harte Kriterien verhindern das.
+**Warum zwei Stufen (Ausschluss und Score)?**
+Mit nur einem Score könnte ein unpassendes Paar durch viele gute Werte „schöngerechnet“
+werden (z. B. viel Budget gleicht den fehlenden Garten aus). Die harten Kriterien verhindern das.
 
 **Warum „Prüfung offen“ statt raten?**
-Fehlende Angaben sollen nicht zu falschen Vorschlägen führen – Mitarbeitende sehen
+Fehlende Angaben sollen nicht zu falschen Vorschlägen führen. So sehen die Mitarbeitenden
 genau, was noch geklärt werden muss.
 
 **Warum 0,5 für „Minimum erfüllt“?**
-So wird sichtbar, ob ein Paar *knapp* oder *komfortabel* passt. Das ist eine fachliche
-Festlegung und kann angepasst werden.
+Damit sieht man, ob ein Paar nur knapp oder gut passt. Den Wert haben wir festgelegt, man
+könnte ihn aber auch anders wählen.
 
-**Warum Gewichte in einer Tabelle?**
-Das Tierheim kann Prioritäten ändern (z. B. Nähe wichtiger machen), ohne Programmcode
-zu ändern.
+**Warum stehen die Gewichte in einer Tabelle?**
+Das Tierheim kann seine Prioritäten ändern (z. B. Nähe wichtiger machen), ohne dass jemand
+am Code etwas ändern muss.
 
-**Warum Bezirke als Liste statt Freitext?**
-Freitext führt zu „Neukölln“, „Neukoelln“ und „Neuköln“ als drei verschiedenen Werten –
-die Kategorie „Nähe“ würde dann nicht mehr funktionieren. Die Liste macht Vergleiche
-sicher; die Erkennungsfunktion übersetzt Freitext aus externen Quellen in die Liste.
+**Warum Bezirke als Liste und nicht als Freitext?**
+Mit Freitext wären „Neukölln“, „Neukoelln“ und „Neuköln“ drei verschiedene Werte, und die
+Kategorie „Nähe“ würde nicht mehr funktionieren. Mit der Liste sind Vergleiche sicher, und
+die Erkennungsfunktion übersetzt Freitext aus anderen Quellen in die Liste.
 
 **Grenzen**
 - Gesundheitsmerkmale, Rasse, Wohnform, Haushaltsgröße und Arbeitsmodell werden
-  gespeichert, fließen aber (noch) nicht in das Matching ein.
-- Garten und Treppen sind nur Ausschlusskriterien, keine Score-Kategorien.
-- Der Mindestscore (50 %) ist fest in der Vorschlags-View hinterlegt.
-- Für sehr große Datenmengen müsste das Matching vorberechnet werden
-  (aktuell wird jedes Tier mit jedem Menschen verglichen).
-- „Nähe“ unterscheidet nur gleicher/anderer Bezirk, keine Entfernung in Kilometern.
+  gespeichert, fließen aber (noch) nicht ins Matching ein.
+- Garten und Treppen sind nur Ausschlusskriterien und zählen nicht im Score.
+- Der Mindestscore von 50 % steht fest in der Vorschlags-View.
+- Bei sehr vielen Daten müsste man das Matching vorberechnen, weil im Moment jedes Tier mit
+  jedem Menschen verglichen wird.
+- „Nähe“ kennt nur gleicher oder anderer Bezirk, keine Entfernung in Kilometern.
 
 **Ausblick**
-- Anbindung einer externen Datenquelle für echte Tier- und Interessentendaten
-  (Bezirkserkennung ist dafür vorbereitet)
+- echte Tier- und Interessentendaten aus einer externen Quelle anbinden
+  (die Bezirkserkennung ist dafür schon vorbereitet)
 - Erweiterung auf ganz Deutschland (amtliches Gemeindeverzeichnis, Postleitzahlen)
-- Nähe über Entfernung (Geokoordinaten) statt nur Bezirksgleichheit
+- Nähe über die Entfernung (Geokoordinaten) statt nur über den Bezirk
 - Gesundheitsmerkmale und Arbeitsmodell in den Score aufnehmen
 - Rückgabe eines Tieres (Vermittlung beenden, Tier wieder verfügbar)
-- Reservierung an eine konkrete Bewerbung binden
-- Weboberfläche für Interessenten und Mitarbeitende
+- Reservierung an eine bestimmte Bewerbung binden
+- eine Weboberfläche für Interessenten und Mitarbeitende
 
 ---
 
-## 13. Vorschlag für die Präsentation
+## 13. Gliederung für die Präsentation
 
-| Folie | Inhalt | Quelle in diesem Dokument |
+| Folie | Inhalt | Wo steht es hier? |
 |---|---|---|
-| 1 | Titel: Paws & Match | – |
+| 1 | Titel: Paws & Match | |
 | 2 | Problem: Fehlvermittlungen und Rückgaben | Abschnitt 1 |
 | 3 | Unsere Lösung und Prinzipien | Abschnitt 1 |
 | 4 | Projekt in Zahlen | Abschnitt 2 |
@@ -808,7 +815,7 @@ SELECT fn_bezirk_id('Neuköln', NULL), fn_bezirk_id('Prenzlauer Berg', NULL); --
 | Tabelle | speichert Daten in Zeilen und Spalten |
 | Primärschlüssel (PK) | eindeutige Nummer einer Zeile |
 | Fremdschlüssel (FK) | Verweis auf eine Zeile einer anderen Tabelle |
-| n:m-Beziehung | „viele zu viele“, z. B. ein Tier hat mehrere Charakterzüge, ein Charakterzug viele Tiere – gelöst über Zuordnungstabellen |
+| n:m-Beziehung | „viele zu viele“, z. B. ein Tier hat mehrere Charakterzüge und ein Charakterzug passt zu vielen Tieren; gelöst über Zuordnungstabellen |
 | View (Sicht) | gespeicherte Abfrage, die wie eine Tabelle gelesen wird und immer aktuell ist |
 | Gespeicherte Prozedur | in der Datenbank gespeichertes Programm, aufgerufen mit `CALL` |
 | Trigger | läuft automatisch vor/nach einer Änderung und kann sie verhindern |

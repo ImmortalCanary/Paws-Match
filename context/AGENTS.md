@@ -22,7 +22,7 @@ Goals:
 - **Target:** MySQL >= 8.0.16 (CHECK, CTE, JSON_TABLE). Verified on **MySQL 8.4.13** only.
 - **Language:** identifiers, comments, messages in German **without umlauts**
   (`ae/oe/ue/ss`), e.g. `beduerfnis`, `groesse`. Keep SQL files ASCII, except
-  `01_grundlage/02_orte_anlegen.sql` (official place names) and `07_tests/03_orts_tests.sql`
+  `01_grundlage/02_orte_anlegen.sql` (official place names) and `07_tests/01_orts_tests.sql`
   (umlaut test cases); those are UTF-8 and must be executed as UTF-8.
 - **Collation:** database uses `utf8mb4_0900_ai_ci` (MySQL 8 client default). String literals
   inside routines get the creating session's collation; `COALESCE(fn_x(...), '')` produced
@@ -49,15 +49,16 @@ README.md                         human documentation (tables, algorithm, presen
 context/AGENTS.md                 this file
 paws_and_match/README.md          install order + short technical notes
 paws_and_match/01_grundlage/      DB, location model (bundesland/ort/bezirk + detection functions),
-                                  17 base tables, 2 triggers, sp_vermitteln, master data
+                                  17 base tables, 2 triggers, master data
 paws_and_match/02_profil_ergaenzungen/  profile extensions (9 tables + ALTER tier/interessent)
 paws_and_match/03_demo_daten/     fictional demo data (20 animals, 20 adopters)
 paws_and_match/04_matching/       views: matching_entscheidung, matching_kriterien,
                                   matching_score, matching_vorschlaege (+ table matching_gewichtung)
-paws_and_match/05_prozeduren/     sp_vorschlaege_fuer_interessent, sp_vorschlaege_fuer_tier,
-                                  sp_interessent_loeschen
+paws_and_match/05_prozeduren/     one file per procedure, named after it: 01 sp_vorschlaege_fuer_interessent,
+                                  02 sp_vorschlaege_fuer_tier, 03 sp_vermitteln, 04 sp_interessent_loeschen
 paws_and_match/06_ausgabe/        demo output for adopter 17 with suggestion status
-paws_and_match/07_tests/          self-asserting tests (30 matching + 43 procedure + 50 location tests)
+paws_and_match/07_tests/          self-asserting tests in build order: 01 location (50), 02 matching (30),
+                                  03 procedures (43)
 ```
 
 Database objects after install: **32 tables, 6 views, 4 procedures, 4 functions, 6 triggers**.
@@ -120,9 +121,9 @@ must be confirmed by the adopter (`interessent_beduerfnis.bestaetigt = 1`), othe
 
 ## 6. Tests and their expectations
 
-- [01_matching_tests.sql](../paws_and_match/07_tests/01_matching_tests.sql) (30 tests),
-  [02_prozedur_tests.sql](../paws_and_match/07_tests/02_prozedur_tests.sql) (43 tests) and
-  [03_orts_tests.sql](../paws_and_match/07_tests/03_orts_tests.sql) (50 tests).
+- [01_orts_tests.sql](../paws_and_match/07_tests/01_orts_tests.sql) (50 tests),
+  [02_matching_tests.sql](../paws_and_match/07_tests/02_matching_tests.sql) (30 tests) and
+  [03_prozedur_tests.sql](../paws_and_match/07_tests/03_prozedur_tests.sql) (43 tests).
 - Pattern: results go into a `TEMPORARY ... ENGINE = MEMORY` table (survives `ROLLBACK`);
   scenario changes run in `START TRANSACTION ... ROLLBACK`; expected errors are captured by
   helper `test_erwarte_fehler(name, sql, message_substring)` via `PREPARE/EXECUTE` and a
@@ -149,7 +150,7 @@ A portable MySQL 8.4.13 lives in `%LOCALAPPDATA%\paws_mysql_test` (not in the re
 & "$env:LOCALAPPDATA\paws_mysql_test\mysql-8.4.13-winx64\bin\mysqld.exe" --defaults-file="$env:LOCALAPPDATA\paws_mysql_test\my.ini" --console
 # run one script (cmd redirect avoids PowerShell quoting/encoding problems)
 $m = "$env:LOCALAPPDATA\paws_mysql_test\mysql-8.4.13-winx64\bin\mysql.exe"
-cmd /c "`"$m`" -uroot -h127.0.0.1 -P3399 --default-character-set=utf8mb4 --table < `"paws_and_match\07_tests\01_matching_tests.sql`""
+cmd /c "`"$m`" -uroot -h127.0.0.1 -P3399 --default-character-set=utf8mb4 --table < `"paws_and_match\07_tests\02_matching_tests.sql`""
 ```
 
 Gotchas: PowerShell execution policy blocks `.ps1` files (define functions inline, do not
@@ -157,7 +158,7 @@ bypass the policy); `mysql -e "..."` gets mangled by PowerShell 5.1 quoting – 
 If the folder is missing: download the MySQL 8.4 ZIP from dev.mysql.com, verify MD5,
 `mysqld --initialize-insecure`, start as above.
 
-Full verification = run all 17 files in README order on the server, twice in a row
+Full verification = run all 18 files in README order on the server, twice in a row
 (idempotency), then the three test files again (re-run safety). Expect zero `ERROR` lines.
 
 ## 8. Change log (2026-11-22)
@@ -201,6 +202,13 @@ Follow-up (location model, requested to prepare real data imports):
 
 File moves: `01_grundlage/02_tabellen_anlegen.sql -> 03_...`, `03_stammdaten_anlegen.sql -> 04_...`;
 new `01_grundlage/02_orte_anlegen.sql`, `07_tests/03_orts_tests.sql`.
+
+Cleanup (numbering follows build order, comments/docs reworded in plain language):
+- `sp_vermitteln` moved from `01_grundlage/03_tabellen_anlegen.sql` to `05_prozeduren/03_vermitteln.sql`
+- `05_prozeduren`: `01_tier_vorschlaege -> 01_vorschlaege_fuer_interessent`,
+  `02_interessenten_vorschlaege -> 02_vorschlaege_fuer_tier`, `03_interessent_loeschen -> 04_...`
+- `07_tests`: `03_orts_tests -> 01_...`, `01_matching_tests -> 02_...`, `02_prozedur_tests -> 03_...`
+- every SQL file starts with a one-line description comment; README files have no emojis
 
 ## 9. Known gaps / ideas (not implemented, ask before doing)
 

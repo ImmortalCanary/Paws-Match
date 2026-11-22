@@ -1,9 +1,8 @@
+-- Tests fuer die Orte und die Bezirkserkennung. Die Datei enthaelt Umlaute, also als UTF-8 ausfuehren.
+-- Was geaendert wird, laeuft in einer Transaktion und wird danach zurueckgerollt.
 USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
-
--- Automatische Assertions fuer Ortsmodell und Bezirkserkennung (Datei bewusst UTF-8).
--- Aenderungen laufen in Transaktionen und werden zurueckgerollt.
 
 DROP TEMPORARY TABLE IF EXISTS test_ergebnis;
 CREATE TEMPORARY TABLE test_ergebnis (
@@ -93,7 +92,7 @@ FROM (
     UNION ALL SELECT '  neukölln  ', 'Neukölln'
     UNION ALL SELECT 'Neukolln', 'Neukölln'
     UNION ALL SELECT 'Neuköln', 'Neukölln'
-    -- UTF-8 als Latin-1 gelesen ("NeukÃ¶lln")
+    -- So sieht 'Neukoelln' mit Umlaut aus, wenn UTF-8 faelschlich als Latin-1 gelesen wurde.
     UNION ALL SELECT CONVERT(X'4E65756BC383C2B66C6C6E' USING utf8mb4), 'Neukölln'
     UNION ALL SELECT 'Berlin-Mitte', 'Mitte'
     UNION ALL SELECT 'Berlin Neukölln', 'Neukölln'
@@ -126,7 +125,7 @@ SELECT 'Einschraenkung auf Ort', '1 / NULL',
        CONCAT(COALESCE(fn_bezirk_id('Mitte', 1), 'NULL'), ' / ', COALESCE(fn_bezirk_id('Mitte', 999), 'NULL')),
        fn_bezirk_id('Mitte', 1) = 1 AND fn_bezirk_id('Mitte', 999) IS NULL;
 
--- 4. Demodaten wurden aus unterschiedlichen Schreibweisen korrekt zugeordnet
+-- 4. Demodaten: verschiedene Schreibweisen landen im richtigen Bezirk
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
 SELECT 'Demodaten: alle Standorte und Profile haben einen Bezirk', '0',
        CONCAT((SELECT COUNT(*) FROM standort WHERE bezirk_id IS NULL)
@@ -141,7 +140,7 @@ SELECT 'Demodaten: Profile 7, 9, 13, 16, 19 zugeordnet', 'Pankow, Neukölln, Spa
 FROM interessent i JOIN bezirk b ON b.id = i.bezirk_id
 WHERE i.id IN (7, 9, 13, 16, 19);
 
--- 5. Freischaltung und Erweiterung auf weitere Orte
+-- 5. Orte freischalten und weitere Orte ergaenzen (Beispiel Hamburg)
 START TRANSACTION;
 UPDATE ort SET aktiv = 0 WHERE id = 1;
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
@@ -192,7 +191,7 @@ DROP PROCEDURE test_erwarte_fehler;
 SELECT nr, testfall, erwartet, ist, IF(bestanden, 'OK', 'FEHLER') AS ergebnis
 FROM test_ergebnis ORDER BY nr;
 
--- NULL (nicht auswertbar) zaehlt als Fehler.
+-- NULL heisst: konnte nicht geprueft werden. Das zaehlen wir als Fehler.
 SELECT COUNT(*) AS tests, SUM(COALESCE(bestanden, 0)) AS bestanden,
        COUNT(*) - SUM(COALESCE(bestanden, 0)) AS fehlgeschlagen,
        IF(SUM(COALESCE(bestanden, 0)) = COUNT(*), 'ALLE ORTS-TESTS BESTANDEN', 'ORTS-TESTS FEHLGESCHLAGEN') AS gesamtergebnis

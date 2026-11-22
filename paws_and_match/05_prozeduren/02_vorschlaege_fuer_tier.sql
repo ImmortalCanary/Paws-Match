@@ -1,3 +1,4 @@
+-- Passende Interessenten fuer ein Tier, die besten zuerst.
 USE paws_match;
 SET NAMES utf8mb4;
 

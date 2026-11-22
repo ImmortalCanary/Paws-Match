@@ -1,3 +1,4 @@
+-- Interessentenprofile erweitern: Wohnsituation, Arbeit, Wuensche und Erfahrung.
 USE paws_match;
 SET NAMES utf8mb4;
 

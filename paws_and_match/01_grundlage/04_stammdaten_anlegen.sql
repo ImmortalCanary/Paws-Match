@@ -1,3 +1,4 @@
+-- Feste Auswahllisten: Tierarten, Charaktereigenschaften und Beduerfnisse.
 USE paws_match;
 SET NAMES utf8mb4;
 

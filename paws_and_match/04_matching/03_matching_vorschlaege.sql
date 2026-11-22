@@ -1,7 +1,7 @@
+-- Stufe 3: Vorschlaege. Die Regeln dafuer stehen nur hier, Prozeduren und Ausgabe lesen aus dieser View.
 USE paws_match;
 SET NAMES utf8mb4;
 
--- Einzige Quelle fuer Vorschlagsregeln; Prozeduren und Ausgabe lesen nur hieraus.
 CREATE OR REPLACE VIEW matching_vorschlaege AS
 SELECT
     s.tier_id,

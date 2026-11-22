@@ -1,3 +1,4 @@
+-- Tierprofile erweitern: Rasse, Groesse, Pflegeaufwand, Gesundheit und Kleintiere.
 USE paws_match;
 SET NAMES utf8mb4;
 

@@ -1,11 +1,10 @@
+-- Tests fuer das Matching. Die erwarteten Werte passen zu den Demodaten aus 03_demo_daten.
+-- Was geaendert wird, laeuft in einer Transaktion und wird danach zurueckgerollt.
 USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
 
--- Automatische Assertions; Aenderungen laufen in Transaktionen und werden zurueckgerollt.
--- Erwartete Werte beruhen auf den Demodaten aus 03_demo_daten.
-
--- MEMORY-Tabelle, damit Ergebnisse ein ROLLBACK ueberstehen.
+-- MEMORY-Tabelle, weil die Ergebnisse sonst beim ROLLBACK mit verschwinden wuerden.
 DROP TEMPORARY TABLE IF EXISTS test_ergebnis;
 CREATE TEMPORARY TABLE test_ergebnis (
     nr INT AUTO_INCREMENT PRIMARY KEY,
@@ -75,7 +74,7 @@ SELECT 'Doppelte View matching_zusatzpruefung entfernt', '0', CONCAT(COUNT(*)), 
 FROM information_schema.VIEWS
 WHERE TABLE_SCHEMA = 'paws_match' AND TABLE_NAME = 'matching_zusatzpruefung';
 
--- 2. Erwartete Entscheidungen (Kriterium muss in der jeweiligen Begruendung stehen)
+-- 2. Bekannte Paare: Eignung und der passende Grund muessen stimmen
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
 SELECT CONCAT('Eignung Interessent ', e.interessent_id, ' / Tier ', e.tier_id),
        CONCAT(e.eignung, IF(e.kriterium IS NULL, '', CONCAT(' (', e.kriterium, ')'))),
@@ -100,10 +99,10 @@ FROM (
 LEFT JOIN matching_entscheidung d
     ON d.interessent_id = e.interessent_id AND d.tier_id = e.tier_id;
 
--- 3. Exakte Scores, unabhaengig von Hand berechnet (ohne 70-Punkte-Sockel)
--- I1/T1: 20 + 15 + 13,5 + 15 + 7,5 + 10 + 5 + 5 + 5 = 96,0
--- I17/T16: 20 + 11,25 + 12,19 + 10,71 + 7,5 + 7,5 + 3,57 + 2,5 + 5 = 80,2
--- I17/T8: 16,67 + 11,25 + 12,75 + 15 + 6,25 + 10 + 5 + 0 + 0 = 76,9
+-- 3. Scores, vorher von Hand ausgerechnet
+-- Interessent 1 / Tier 1:   20 + 15 + 13,5 + 15 + 7,5 + 10 + 5 + 5 + 5 = 96,0
+-- Interessent 17 / Tier 16: 20 + 11,25 + 12,19 + 10,71 + 7,5 + 7,5 + 3,57 + 2,5 + 5 = 80,2
+-- Interessent 17 / Tier 8:  16,67 + 11,25 + 12,75 + 15 + 6,25 + 10 + 5 + 0 + 0 = 76,9
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
 SELECT CONCAT('Score Interessent ', e.interessent_id, ' / Tier ', e.tier_id),
        CONCAT(e.score), COALESCE(CONCAT(s.match_prozent), 'NULL'), s.match_prozent = e.score
@@ -114,7 +113,7 @@ FROM (
 ) e
 LEFT JOIN matching_score s ON s.interessent_id = e.interessent_id AND s.tier_id = e.tier_id;
 
--- 4. Graduelle Kriterien: Aenderungen innerhalb der harten Grenzen veraendern den Score
+-- 4. Der Score soll sich auch innerhalb der harten Grenzen veraendern
 SET @score_vorher = (SELECT match_prozent FROM matching_score WHERE interessent_id = 17 AND tier_id = 16);
 
 START TRANSACTION;
@@ -135,21 +134,21 @@ SELECT 'Mehr Budgetreserve erhoeht Score (Budget graduell)',
 FROM matching_score WHERE interessent_id = 17 AND tier_id = 16;
 ROLLBACK;
 
--- Genau an allen Mindestgrenzen: 20 + 0 + 7,5 + 7,5 + 5 + 7,5 + 2,5 + 2,5 + 5 = 57,5
--- (mit dem frueheren 70-Punkte-Sockel waeren es 75,0 gewesen)
+-- Alles genau auf dem Minimum: 20 + 0 + 7,5 + 7,5 + 5 + 7,5 + 2,5 + 2,5 + 5 = 57,5
+-- (mit der alten Berechnung mit 70 Grundpunkten kaeme hier 75,0 raus)
 START TRANSACTION;
 UPDATE interessent
 SET wohnflaeche = 70, zeit_stunden = 3, allein_stunden = 4, budget = 350, aktivitaet = 1
 WHERE id = 17;
 UPDATE interessent_tiererfahrung SET erfahrungslevel = 3 WHERE interessent_id = 17 AND tierart_id = 1;
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
-SELECT 'Score an den Mindestgrenzen ohne kuenstlichen Sockel', 'geeignet, 57.5',
+SELECT 'Score an den Mindestgrenzen ohne Grundpunkte', 'geeignet, 57.5',
        CONCAT(eignung, ', ', COALESCE(match_prozent, 'NULL')),
        eignung = 'geeignet' AND match_prozent = 57.5
 FROM matching_score WHERE interessent_id = 17 AND tier_id = 16;
 ROLLBACK;
 
--- 5. Fehlende weiche Daten: 0 Punkte und geringere Datenabdeckung
+-- 5. Fehlende weiche Angaben: 0 Punkte und weniger Datenabdeckung
 START TRANSACTION;
 DELETE FROM interessent_charakter WHERE interessent_id = 17;
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
@@ -181,7 +180,7 @@ SELECT 'Fehlendes Gewicht: kein Score', '0 Scores',
 FROM matching_score;
 ROLLBACK;
 
--- 7. Plausibilitaetsregeln: ungueltige Werte koennen nicht erfasst werden
+-- 7. Ungueltige Werte duerfen gar nicht erst gespeichert werden
 START TRANSACTION;
 CALL test_erwarte_fehler('Interessent: Betreuungs- plus Alleinzeit > 24 h',
     'UPDATE interessent SET zeit_stunden = 20, allein_stunden = 10 WHERE id = 1', 'ck_interessent_tagesstunden');
@@ -198,7 +197,7 @@ DROP PROCEDURE test_erwarte_fehler;
 SELECT nr, testfall, erwartet, ist, IF(bestanden, 'OK', 'FEHLER') AS ergebnis
 FROM test_ergebnis ORDER BY nr;
 
--- NULL (nicht auswertbar) zaehlt als Fehler.
+-- NULL heisst: konnte nicht geprueft werden. Das zaehlen wir als Fehler.
 SELECT COUNT(*) AS tests, SUM(COALESCE(bestanden, 0)) AS bestanden,
        COUNT(*) - SUM(COALESCE(bestanden, 0)) AS fehlgeschlagen,
        IF(SUM(COALESCE(bestanden, 0)) = COUNT(*), 'ALLE MATCHING-TESTS BESTANDEN', 'MATCHING-TESTS FEHLGESCHLAGEN') AS gesamtergebnis

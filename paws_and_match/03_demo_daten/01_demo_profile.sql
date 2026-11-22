@@ -1,7 +1,6 @@
+-- Demodaten zum Ausprobieren. Alle Tierheime, Tiere und Personen sind ausgedacht.
 USE paws_match;
 SET NAMES utf8mb4;
-
--- Ausschliesslich fiktive Demonstrationsdaten.
 
 INSERT INTO tierheim (id, name, email) VALUES
     (1, 'Demo-Tierschutz 1', 'heim1@example.org'),
@@ -10,7 +9,7 @@ INSERT INTO tierheim (id, name, email) VALUES
     (4, 'Demo-Tierschutz 4', 'heim4@example.org'),
     (5, 'Demo-Tierschutz 5', 'heim5@example.org');
 
--- Bezirke werden wie bei einem Import aus Freitext erkannt (verschiedene Schreibweisen gewollt).
+-- Die Bezirke sind absichtlich unterschiedlich geschrieben, so wie sie bei einem Import ankommen wuerden.
 INSERT INTO standort (id, tierheim_id, name, bezirk_id, kapazitaet) VALUES
     (1, 1, 'Demo-Standort Mitte', fn_bezirk_id_pflicht('Mitte'), 30),
     (2, 2, 'Demo-Standort Pankow', fn_bezirk_id_pflicht('Pankow'), 30),
@@ -128,7 +127,7 @@ INSERT INTO termin (id, bewerbung_id, mitarbeiter_id, zeitpunkt, art) VALUES
     (4, 4, 4, '2026-12-01 14:00:00', 'kennenlernen'),
     (5, 5, 5, '2026-12-01 14:00:00', 'kennenlernen');
 
--- Erweiterte Tierprofile (Groesse, Pflegeaufwand, Kleintiervertraeglichkeit).
+-- Zusatzangaben fuer die Tiere: Groesse, Pflegeaufwand und ob sie mit Kleintieren klarkommen.
 UPDATE tier SET groesse_id = 2, pflegeaufwand_id = 2, kleintiere_ok = 1 WHERE id IN (1, 6, 11);
 UPDATE tier SET groesse_id = 3, pflegeaufwand_id = 2, kleintiere_ok = 0 WHERE id = 16;
 UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 1, kleintiere_ok = 0 WHERE id IN (2, 7, 12, 17);
@@ -136,7 +135,7 @@ UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 2, kleintiere_ok = 1 WHERE id
 UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 3, kleintiere_ok = 1 WHERE id = 18;
 UPDATE tier SET groesse_id = 1, pflegeaufwand_id = 1, kleintiere_ok = 1 WHERE id IN (5, 10, 15, 20);
 
--- Erweiterte Interessentenprofile.
+-- Zusatzangaben fuer die Interessenten.
 UPDATE interessent
 SET wohnform_id = 2, balkon = 0, balkon_gesichert = 0, haushaltsgroesse = 2,
     kleintiere_vorhanden = 0, arbeitsmodell_id = 3, wunschalter_min = 1, wunschalter_max = 10,
@@ -177,7 +176,7 @@ SET wohnform_id = 1, balkon = 1, balkon_gesichert = 1, haushaltsgroesse = 1,
     training_bereit = 0, tierarzt_bereit = 0, max_pflegeaufwand_id = 1
 WHERE id = 20;
 
--- Profil 13 bewusst ohne tierartspezifische Erfahrung (Beispiel fuer offene Pruefung).
+-- Profil 13 hat absichtlich keine Erfahrung eingetragen, damit man eine offene Pruefung sieht.
 INSERT INTO interessent_tiererfahrung (interessent_id, tierart_id, erfahrungslevel) VALUES
     (1, 1, 3), (2, 2, 3), (3, 3, 3), (4, 4, 3), (5, 5, 3),
     (6, 1, 3), (7, 2, 3), (8, 3, 3), (9, 4, 3), (10, 5, 3),

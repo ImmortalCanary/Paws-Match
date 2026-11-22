@@ -1,11 +1,12 @@
+-- Interessent loeschen oder anonymisieren.
 USE paws_match;
 SET NAMES utf8mb4;
 
 DROP PROCEDURE IF EXISTS sp_interessent_loeschen;
 
 DELIMITER $$
--- Ohne Bewerbungshistorie wird das Profil geloescht (abhaengige Profildaten per Cascade).
--- Mit Historie bleiben Bewerbungen erhalten; Personendaten werden anonymisiert.
+-- Ohne Bewerbungen wird das Profil einfach geloescht (Wuensche usw. gehen per Cascade mit).
+-- Mit Bewerbungen bleibt die Historie stehen und nur die persoenlichen Daten werden entfernt.
 CREATE PROCEDURE sp_interessent_loeschen (IN p_id INT, OUT p_ergebnis VARCHAR(20))
 MODIFIES SQL DATA
 BEGIN

@@ -1,3 +1,4 @@
+-- Uebersicht fuer ein Profil: alle Tiere mit Eignung, Score und warum es (k)einen Vorschlag gibt.
 USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;

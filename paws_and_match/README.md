@@ -1,8 +1,9 @@
-# Paws Match – SQL
+# Paws & Match: SQL-Skripte
 
-Die Dateien sind in der angegebenen Reihenfolge in **einer** Sitzung auszufuehren.
+Die Skripte muessen genau in dieser Reihenfolge und in **einer** Sitzung laufen
+(MySQL Workbench oder `mysql`-Konsole).
 
-## Ausfuehrungsreihenfolge
+## Reihenfolge
 
 1. `paws_and_match/01_grundlage/01_datenbank_anlegen.sql`
 2. `paws_and_match/01_grundlage/02_orte_anlegen.sql`
@@ -14,81 +15,84 @@ Die Dateien sind in der angegebenen Reihenfolge in **einer** Sitzung auszufuehre
 8. `paws_and_match/04_matching/01_matching_entscheidung.sql`
 9. `paws_and_match/04_matching/02_matching_score.sql`
 10. `paws_and_match/04_matching/03_matching_vorschlaege.sql`
-11. `paws_and_match/05_prozeduren/01_tier_vorschlaege.sql`
-12. `paws_and_match/05_prozeduren/02_interessenten_vorschlaege.sql`
-13. `paws_and_match/05_prozeduren/03_interessent_loeschen.sql`
-14. `paws_and_match/06_ausgabe/01_matching_ausgabe.sql`
-15. `paws_and_match/07_tests/01_matching_tests.sql`
-16. `paws_and_match/07_tests/02_prozedur_tests.sql`
-17. `paws_and_match/07_tests/03_orts_tests.sql`
+11. `paws_and_match/05_prozeduren/01_vorschlaege_fuer_interessent.sql`
+12. `paws_and_match/05_prozeduren/02_vorschlaege_fuer_tier.sql`
+13. `paws_and_match/05_prozeduren/03_vermitteln.sql`
+14. `paws_and_match/05_prozeduren/04_interessent_loeschen.sql`
+15. `paws_and_match/06_ausgabe/01_matching_ausgabe.sql`
+16. `paws_and_match/07_tests/01_orts_tests.sql`
+17. `paws_and_match/07_tests/02_matching_tests.sql`
+18. `paws_and_match/07_tests/03_prozedur_tests.sql`
 
-## Hinweise
+## Gut zu wissen
 
-- MySQL 8.0.16 oder neuer wird vorausgesetzt (CHECK-Constraints, CTEs, JSON_TABLE).
-- Getestet mit MySQL Community Server 8.4.13: Neuinstallation, Wiederholung der
-  Installation und alle Testskripte laufen fehlerfrei (30 + 43 + 50 Tests bestanden).
-- Die Dateien muessen als UTF-8 ausgefuehrt werden (amtliche Ortsnamen mit Umlauten).
-- Schritt 1 entfernt eine vorhandene Datenbank `paws_match` vollstaendig. Dadurch ist die
-  Installation beliebig wiederholbar; bestehende Daten in `paws_match` gehen dabei verloren.
-- Views werden mit `CREATE OR REPLACE`, Prozeduren nach `DROP ... IF EXISTS` angelegt.
+- Man braucht MySQL 8.0.16 oder neuer (wegen CHECK-Constraints, CTEs und JSON_TABLE).
+  Wir haben alles mit MySQL 8.4.13 getestet: Installation zweimal hintereinander,
+  danach alle Tests (50 + 30 + 43 bestanden).
+- Bitte als UTF-8 ausfuehren, die Ortsnamen enthalten Umlaute.
+- Schritt 1 loescht eine vorhandene Datenbank `paws_match` komplett. Dadurch kann man die
+  Installation beliebig oft wiederholen, alte Daten sind dann aber weg.
+- Views werden mit `CREATE OR REPLACE` angelegt, Prozeduren vorher mit `DROP ... IF EXISTS` entfernt.
 
-## Datenmodell
+## Datenmodell kurz
 
 - Organisation: `tierheim`, `standort`, `mitarbeiter`
-- Orte: `bundesland` -> `ort` -> `bezirk` (+ `bezirk_alias` fuer Ortsteile); Standorte und
-  Interessenten verweisen per Fremdschluessel auf einen Bezirk (Dropdown: View
-  `bezirk_auswahl`, freigeschaltet ist vorerst nur Berlin).
-- Profile: `tier`, `interessent` mit Ergaenzungen (Rasse, Groesse, Pflegeaufwand,
+- Orte: `bundesland` > `ort` > `bezirk`, dazu `bezirk_alias` fuer Ortsteile. Standorte und
+  Interessenten zeigen per Fremdschluessel auf einen Bezirk. Das Dropdown liefert die View
+  `bezirk_auswahl`, im Moment nur mit Berlin.
+- Profile: `tier` und `interessent` mit Ergaenzungen (Rasse, Groesse, Pflegeaufwand,
   Gesundheit, Wohnform, Arbeitsmodell, Wunschgroesse, Wunschstandort, Tiererfahrung)
-- Prozess: `merkliste`, `bewerbung`, `termin`, `vermittlung`
-- Plausibilitaet: CHECK-Constraints fuer Wertebereiche, Wahrheitswerte, E-Mail-Format
-  und Tagesstunden (Betreuungs- plus Alleinzeit hoechstens 24 h).
+- Ablauf: `merkliste`, `bewerbung`, `termin`, `vermittlung`
+- CHECK-Constraints sorgen fuer gueltige Werte (Wertebereiche, Ja/Nein-Felder, E-Mail-Format,
+  Betreuungszeit plus Alleinzeit hoechstens 24 Stunden).
 
-## Matching
+## Matching kurz
 
-1. `matching_entscheidung`: harte Kriterien je Tier-Interessent-Paar mit Ergebnis
-   `geeignet`, `pruefung_offen` (Angaben fehlen) oder `ausgeschlossen` samt Begruendung.
-2. `matching_kriterien`: neun Kategorien mit Teilpassung 0..1 (NULL = keine Daten).
-   Mindestanforderung erfuellt = 0,5; Reserve bis zum Doppelten der Anforderung = bis 1,0.
+1. `matching_entscheidung`: harte Kriterien fuer jedes Paar aus Tier und Interessent.
+   Ergebnis ist `geeignet`, `pruefung_offen` (Angaben fehlen) oder `ausgeschlossen`, jeweils mit Grund.
+2. `matching_kriterien`: neun Kategorien, jede mit einem Wert von 0 bis 1 (NULL = keine Daten).
+   Wer die Mindestanforderung genau erfuellt, bekommt 0,5, wer doppelt so viel bietet, 1,0.
    - Tierart: Tierartwunsch, Wunschgroesse, Wunschalter
-   - Aktivitaet: Abstand der Aktivitaetsstufen
-   - Zeit: Betreuungszeit- und Alleinzeitreserve
-   - Wohnsituation: Wohnflaechenreserve
-   - Erfahrung: tierartspezifische Erfahrung ueber dem Minimum
-   - Vertraeglichkeit: Kinder, Hunde, Katzen, Kleintiere (unvertraeglich, aber nicht
-     vorhanden = 0,5)
-   - Budget: Budgetreserve
-   - Charakter: Anteil getroffener Charakterwuensche
+   - Aktivitaet: wie weit die Aktivitaetsstufen auseinanderliegen
+   - Zeit: Reserve bei Betreuungszeit und Alleinzeit
+   - Wohnsituation: Reserve bei der Wohnflaeche
+   - Erfahrung: Erfahrung mit der Tierart ueber dem Minimum
+   - Vertraeglichkeit: Kinder, Hunde, Katzen, Kleintiere (unvertraeglich, aber nicht im
+     Haushalt = 0,5)
+   - Budget: Reserve beim Budget
+   - Charakter: Anteil der gewuenschten Charakterzuege, die das Tier hat
    - Naehe: Wunschstandort oder gleicher Bezirk
-3. `matching_score`: `match_prozent` = Summe(Teilpassung x Gewicht); Gewichte muessen
-   vollstaendig sein und 100 ergeben. Fehlende Kategorien erhalten 0 Punkte,
-   `datenabdeckung_prozent` zeigt den erfassten Gewichtsanteil.
-4. `matching_vorschlaege`: einzige Quelle fuer Vorschlaege (geeignet, Tier verfuegbar,
-   Profil aktiv, Gewichtung gueltig, Score mindestens 50). Die Prozeduren
-   `sp_vorschlaege_fuer_interessent` und `sp_vorschlaege_fuer_tier` lesen daraus.
+3. `matching_score`: `match_prozent` = Summe aus Wert mal Gewicht. Die Gewichte muessen
+   vollstaendig sein und zusammen 100 ergeben. Fehlende Kategorien geben 0 Punkte,
+   `datenabdeckung_prozent` zeigt, wie viel vom Gewicht echte Daten hat.
+4. `matching_vorschlaege`: hier stehen die Regeln fuer Vorschlaege (geeignet, Tier verfuegbar,
+   Profil aktiv, Gewichtung in Ordnung, Score mindestens 50). Die Prozeduren
+   `sp_vorschlaege_fuer_interessent` und `sp_vorschlaege_fuer_tier` lesen nur daraus.
 
-## Bezirkserkennung (Freitext, z. B. bei Importen)
+## Bezirke aus Freitext erkennen (z. B. fuer Importe)
 
-- `fn_bezirk_id(text, ort_id)` liefert die Bezirk-ID oder NULL (unbekannt/mehrdeutig):
-  Schreibweise vereinheitlichen (Gross/klein, Umlaute, Sonderzeichen), exakt in Bezirken
-  und Ortsteilen suchen, danach Tippfehler bis Distanz 1 (4-5 Zeichen) bzw. 2 tolerieren.
-- `fn_bezirk_id_pflicht(text)` bricht bei unbekanntem Bezirk mit Meldung ab.
-- Erweiterung: Zeilen in `ort`/`bezirk` ergaenzen und `ort.aktiv = 1` setzen.
+- `fn_bezirk_id(text, ort_id)` gibt die Bezirk-ID zurueck oder NULL, wenn nichts oder
+  mehreres passt. Dafuer wird die Schreibweise vereinheitlicht (Gross/klein, Umlaute,
+  Sonderzeichen), dann exakt in Bezirken und Ortsteilen gesucht und zum Schluss mit
+  Tippfehlern (1 Fehler bei 4-5 Buchstaben, sonst 2).
+- `fn_bezirk_id_pflicht(text)` macht dasselbe, gibt aber einen Fehler aus statt NULL.
+- Neue Orte: Zeilen in `ort` und `bezirk` eintragen und `ort.aktiv = 1` setzen.
 
-## Vermittlung und Loeschung
+## Vermitteln und Loeschen
 
-- `sp_vermitteln(bewerbung, mitarbeiter)`: prueft Standort, aktives Profil und Status,
-  vermittelt transaktional und lehnt konkurrierende offene Bewerbungen automatisch ab.
-  Direkte Inserts in `vermittlung` und Bewerbungen auf nicht verfuegbare Tiere werden
-  durch Trigger verhindert.
-- `sp_interessent_loeschen(id, @ergebnis)`: ohne Bewerbungshistorie wird das Profil
-  geloescht (abhaengige Profildaten per Cascade), mit Historie werden Personendaten
-  anonymisiert und offene Bewerbungen zurueckgezogen.
-- Bewerbungen, Termine und Vermittlungen sind Historie und blockieren das Loeschen
-  von Tieren und Interessenten.
+- `sp_vermitteln(bewerbung, mitarbeiter)` prueft Standort, aktives Profil und Status,
+  vermittelt alles in einer Transaktion und lehnt andere offene Bewerbungen fuer das Tier ab.
+  Direkt in `vermittlung` schreiben oder sich auf ein nicht verfuegbares Tier bewerben
+  verhindern Trigger.
+- `sp_interessent_loeschen(id, @ergebnis)`: ohne Bewerbungen wird das Profil geloescht
+  (Wuensche usw. per Cascade), mit Bewerbungen werden nur die persoenlichen Daten entfernt
+  und offene Bewerbungen zurueckgezogen.
+- Bewerbungen, Termine und Vermittlungen sind Historie. Tiere oder Interessenten mit
+  Historie lassen sich deshalb nicht loeschen.
 
 ## Tests
 
-Alle drei Testskripte pruefen automatisch und enden mit einer Zusammenfassung
-(`ALLE ... TESTS BESTANDEN`). Aenderungen laufen in zurueckgerollten Transaktionen bzw.
-mit Testdaten ab ID 9001, die am Ende entfernt werden; die Demodaten bleiben unveraendert.
+Die drei Testskripte pruefen sich selbst und zeigen am Ende eine Zusammenfassung
+(`ALLE ... TESTS BESTANDEN`). Aenderungen laufen in Transaktionen, die zurueckgerollt werden,
+oder mit eigenen Testdaten ab ID 9001, die am Ende wieder geloescht werden. Die Demodaten
+bleiben also gleich.

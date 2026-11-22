@@ -1,3 +1,4 @@
+-- Stufe 1: harte Kriterien fuer jedes Paar aus Tier und Interessent (0 = ok, 1 = offen, 2 = Ausschluss).
 USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
@@ -11,14 +12,28 @@ WITH profil AS (
         i.kleintiere_vorhanden, i.balkon, i.balkon_gesichert, i.training_bereit,
         i.tierarzt_bereit, e.erfahrungslevel, pf.rang AS pflege_bedarf,
         ipf.rang AS pflege_bereitschaft,
-        EXISTS(SELECT 1 FROM interessent_tierart it WHERE it.interessent_id = i.id) AS tierwunsch_erfasst,
-        EXISTS(SELECT 1 FROM interessent_tierart it WHERE it.interessent_id = i.id AND it.tierart_id = t.tierart_id) AS tierart_passt,
-        EXISTS(SELECT 1 FROM tier_beduerfnis tb WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 2) AS balkon_bedarf,
-        EXISTS(SELECT 1 FROM tier_beduerfnis tb WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 4) AS training_bedarf,
-        CASE WHEN t.medizin_noetig = 1 OR EXISTS(SELECT 1 FROM tier_beduerfnis tb WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 1) THEN 1
-             WHEN t.medizin_noetig = 0 THEN 0 ELSE NULL END AS medizin_bedarf,
-        EXISTS(SELECT 1 FROM tier_beduerfnis tb JOIN interessent_beduerfnis ib ON ib.beduerfnis_id = tb.beduerfnis_id AND ib.interessent_id = i.id WHERE tb.tier_id = t.id AND ib.bestaetigt = 0) AS bedarf_abgelehnt,
-        EXISTS(SELECT 1 FROM tier_beduerfnis tb WHERE tb.tier_id = t.id AND NOT EXISTS(SELECT 1 FROM interessent_beduerfnis ib WHERE ib.interessent_id = i.id AND ib.beduerfnis_id = tb.beduerfnis_id)) AS bedarf_offen
+        EXISTS(SELECT 1 FROM interessent_tierart it
+               WHERE it.interessent_id = i.id) AS tierwunsch_erfasst,
+        EXISTS(SELECT 1 FROM interessent_tierart it
+               WHERE it.interessent_id = i.id AND it.tierart_id = t.tierart_id) AS tierart_passt,
+        EXISTS(SELECT 1 FROM tier_beduerfnis tb
+               WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 2) AS balkon_bedarf,
+        EXISTS(SELECT 1 FROM tier_beduerfnis tb
+               WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 4) AS training_bedarf,
+        CASE WHEN t.medizin_noetig = 1
+                  OR EXISTS(SELECT 1 FROM tier_beduerfnis tb
+                            WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 1) THEN 1
+             WHEN t.medizin_noetig = 0 THEN 0
+             ELSE NULL END AS medizin_bedarf,
+        EXISTS(SELECT 1 FROM tier_beduerfnis tb
+               JOIN interessent_beduerfnis ib
+                 ON ib.beduerfnis_id = tb.beduerfnis_id AND ib.interessent_id = i.id
+               WHERE tb.tier_id = t.id AND ib.bestaetigt = 0) AS bedarf_abgelehnt,
+        EXISTS(SELECT 1 FROM tier_beduerfnis tb
+               WHERE tb.tier_id = t.id
+                 AND NOT EXISTS(SELECT 1 FROM interessent_beduerfnis ib
+                                WHERE ib.interessent_id = i.id
+                                  AND ib.beduerfnis_id = tb.beduerfnis_id)) AS bedarf_offen
     FROM tier t
     CROSS JOIN interessent i
     LEFT JOIN interessent_tiererfahrung e ON e.interessent_id = i.id AND e.tierart_id = t.tierart_id

@@ -1,3 +1,4 @@
+-- Stufe 2: Gewichtung und Score fuer die geeigneten Paare.
 USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
@@ -14,8 +15,8 @@ INSERT INTO matching_gewichtung (kriterium, gewicht) VALUES
     ('Erfahrung', 10), ('Vertraeglichkeit', 10), ('Budget', 5),
     ('Charakter', 5), ('Naehe', 5);
 
--- Jede Kategorie liefert eine Teilpassung zwischen 0 und 1 oder NULL bei fehlenden Daten.
--- Mindestanforderungen geben 0,5; Reserve bis zum Doppelten der Anforderung steigert auf 1,0.
+-- Jede Kategorie bekommt einen Wert zwischen 0 und 1, oder NULL wenn Daten fehlen.
+-- Mindestanforderung genau erfuellt = 0,5, doppelt so viel wie noetig = 1,0.
 CREATE OR REPLACE VIEW matching_kriterien AS
 WITH basis AS (
     SELECT
@@ -126,7 +127,7 @@ UNION ALL SELECT tier_id, interessent_id, 'Budget', budget FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Charakter', charakter FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Naehe', naehe FROM kategorien;
 
--- Fehlende Kategorien erhalten 0 Punkte; die Datenabdeckung weist den erfassten Gewichtsanteil aus.
+-- Fehlende Kategorien geben 0 Punkte. Wie viel vom Gewicht echte Daten hat, steht in datenabdeckung_prozent.
 CREATE OR REPLACE VIEW matching_score AS
 WITH gewichtung AS (
     SELECT COUNT(*) AS anzahl_gewichte, SUM(gewicht) AS gesamtgewicht

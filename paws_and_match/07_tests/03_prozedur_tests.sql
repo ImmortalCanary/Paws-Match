@@ -1,11 +1,10 @@
+-- Tests fuer Vorschlaege, Vermittlung und Loeschen.
+-- Dafuer legen wir Testdaten ab ID 9001 an und loeschen sie am Ende wieder. Die Demodaten bleiben gleich.
 USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
 
--- Automatische Assertions fuer Vorschlags-, Vermittlungs- und Loeschprozeduren.
--- Testdaten mit IDs ab 9001 werden angelegt und wieder entfernt; Demodaten bleiben unveraendert.
-
--- MEMORY-Tabelle, damit Ergebnisse ein ROLLBACK ueberstehen.
+-- MEMORY-Tabelle, weil die Ergebnisse sonst beim ROLLBACK mit verschwinden wuerden.
 DROP TEMPORARY TABLE IF EXISTS test_ergebnis;
 CREATE TEMPORARY TABLE test_ergebnis (
     nr INT AUTO_INCREMENT PRIMARY KEY,
@@ -67,7 +66,7 @@ BEGIN
 END$$
 DELIMITER ;
 
--- Reste eines abgebrochenen Laufs entfernen und Ausgangszustand festhalten.
+-- Falls ein frueherer Lauf abgebrochen ist: Reste entfernen und Ausgangszustand merken.
 CALL test_aufraeumen();
 
 SELECT MD5(CONCAT_WS('#',
@@ -80,7 +79,7 @@ SELECT MD5(CONCAT_WS('#',
     (SELECT SUM(gewicht) FROM matching_gewichtung)))
 INTO @fingerprint_vorher;
 
--- 1. Vorschlaege (einzige Quelle: matching_vorschlaege)
+-- 1. Vorschlaege (kommen alle aus der View matching_vorschlaege)
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
 SELECT 'Vorschlaege Interessent 17 in Rangfolge', '6,11,16,8,13',
        COALESCE(GROUP_CONCAT(tier_id ORDER BY match_prozent DESC, datenabdeckung_prozent DESC, tier_id), '-'),
@@ -124,7 +123,7 @@ INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
 VALUES ('Prozedur veraendert keine Sitzungsvariablen', CONCAT(@textlimit_vorher),
         CONCAT(@@SESSION.group_concat_max_len), @@SESSION.group_concat_max_len = @textlimit_vorher);
 
--- 2. Fehlerfaelle der Vorschlagsprozeduren
+-- 2. Fehlerfaelle bei den Vorschlagsprozeduren
 CALL test_erwarte_fehler('Interessent NULL', 'CALL sp_vorschlaege_fuer_interessent(NULL)', 'positive Interessenten-ID');
 CALL test_erwarte_fehler('Interessent 0', 'CALL sp_vorschlaege_fuer_interessent(0)', 'positive Interessenten-ID');
 CALL test_erwarte_fehler('Interessent -1', 'CALL sp_vorschlaege_fuer_interessent(-1)', 'positive Interessenten-ID');
@@ -163,7 +162,7 @@ DELETE FROM matching_gewichtung WHERE kriterium = 'Naehe';
 CALL test_erwarte_fehler('Fehlendes Gewicht', 'CALL sp_vorschlaege_fuer_interessent(17)', '100 ergeben');
 ROLLBACK;
 
--- 3. Testdaten fuer Vermittlung, Loeschung und Cascade
+-- 3. Testdaten fuer Vermittlung, Loeschen und Cascade anlegen
 INSERT INTO tier (id, standort_id, tierart_id, name) VALUES
     (9001, 1, 1, 'Testtier A'), (9002, 1, 1, 'Testtier B'),
     (9003, 1, 1, 'Testtier C'), (9004, 1, 1, 'Testtier D');
@@ -220,7 +219,7 @@ CALL test_erwarte_fehler('Bewerbung auf vermitteltes Tier blockiert',
 CALL test_erwarte_fehler('Bewerbung inaktiver Interessent blockiert',
     'INSERT INTO bewerbung (interessent_id, tier_id) VALUES (9005, 9002)', 'nicht aktiv');
 
--- 5. Loeschstrategie
+-- 5. Loeschen und Anonymisieren
 CALL test_erwarte_fehler('Loeschen: ID NULL', 'CALL sp_interessent_loeschen(NULL, @erg)', 'positive Interessenten-ID');
 CALL test_erwarte_fehler('Loeschen: unbekannte ID', 'CALL sp_interessent_loeschen(99999, @erg)', 'nicht gefunden');
 
@@ -253,7 +252,7 @@ SELECT 'Ohne Historie: geloescht inkl. abhaengiger Profildaten (Cascade)', 'gelo
            + (SELECT COUNT(*) FROM interessent_tierart WHERE interessent_id = 9004)
            + (SELECT COUNT(*) FROM merkliste WHERE interessent_id = 9004) = 0;
 
--- 6. Tiere: Historie geschuetzt, abhaengige Profildaten per Cascade
+-- 6. Tiere: Historie ist geschuetzt, Zusatzdaten gehen per Cascade mit
 CALL test_erwarte_fehler('Tier mit Bewerbungshistorie nicht loeschbar', 'DELETE FROM tier WHERE id = 9002', 'foreign key constraint fails');
 CALL test_erwarte_erfolg('Tier ohne Historie loeschbar', 'DELETE FROM tier WHERE id = 9004');
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
@@ -265,7 +264,7 @@ SELECT 'Tier geloescht inkl. Charakter, Beduerfnis und Merkliste', '0',
        + (SELECT COUNT(*) FROM tier_beduerfnis WHERE tier_id = 9004)
        + (SELECT COUNT(*) FROM merkliste WHERE tier_id = 9004) = 0;
 
--- 7. Aufraeumen und pruefen, dass die Demodaten unveraendert sind
+-- 7. Aufraeumen und pruefen, ob die Demodaten noch genauso aussehen wie vorher
 CALL test_aufraeumen();
 ALTER TABLE tier AUTO_INCREMENT = 1;
 ALTER TABLE interessent AUTO_INCREMENT = 1;
@@ -293,7 +292,7 @@ DROP PROCEDURE test_aufraeumen;
 SELECT nr, testfall, erwartet, ist, IF(bestanden, 'OK', 'FEHLER') AS ergebnis
 FROM test_ergebnis ORDER BY nr;
 
--- NULL (nicht auswertbar) zaehlt als Fehler.
+-- NULL heisst: konnte nicht geprueft werden. Das zaehlen wir als Fehler.
 SELECT COUNT(*) AS tests, SUM(COALESCE(bestanden, 0)) AS bestanden,
        COUNT(*) - SUM(COALESCE(bestanden, 0)) AS fehlgeschlagen,
        IF(SUM(COALESCE(bestanden, 0)) = COUNT(*), 'ALLE PROZEDUR-TESTS BESTANDEN', 'PROZEDUR-TESTS FEHLGESCHLAGEN') AS gesamtergebnis

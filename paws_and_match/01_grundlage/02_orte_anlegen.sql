@@ -1,13 +1,11 @@
+-- Orte: Bundesland > Ort > Bezirk. Freigeschaltet ist erstmal nur Berlin, ganz Deutschland kommt spaeter.
+-- In der Datei stehen amtliche Namen mit Umlauten, also bitte als UTF-8 ausfuehren.
 USE paws_match;
 SET NAMES utf8mb4;
 
--- Ortsmodell: Bundesland -> Ort (Gemeinde) -> Bezirk (kleinste waehlbare Einheit).
--- Freigeschaltet ist vorerst nur Berlin; weitere Orte werden spaeter mit aktiv = 1 ergaenzt.
--- Enthaelt amtliche Namen mit Umlauten: als UTF-8 ausfuehren.
-
 DELIMITER $$
 
--- Vereinheitlicht Schreibweisen: klein, Umlaute ausgeschrieben, nur a-z und 0-9.
+-- Macht aus 'Neukölln', 'NEUKOELLN' oder ' neukölln ' immer 'neukoelln', damit man Schreibweisen vergleichen kann.
 CREATE FUNCTION fn_text_normalisieren (p_text VARCHAR(200))
 RETURNS VARCHAR(200)
 DETERMINISTIC
@@ -29,7 +27,7 @@ BEGIN
     RETURN NULLIF(v, '');
 END$$
 
--- Editierdistanz (Einfuegen, Loeschen, Ersetzen) fuer bereits normalisierte Texte.
+-- Levenshtein-Distanz: wie viele Buchstaben man einfuegen, loeschen oder tauschen muss, bis zwei Woerter gleich sind.
 CREATE FUNCTION fn_levenshtein (p_a VARCHAR(200), p_b VARCHAR(200))
 RETURNS INT
 DETERMINISTIC
@@ -41,7 +39,7 @@ BEGIN
     DECLARE v_j INT DEFAULT 0;
     DECLARE v_zeichen VARCHAR(1);
     DECLARE v_kosten INT;
-    -- Zeilen der Distanzmatrix, ein Byte je Zelle (Texte sind hoechstens 200 Zeichen lang).
+    -- Je eine Zeile der Rechenmatrix als Bytes (ein Byte pro Feld reicht, die Texte haben max. 200 Zeichen).
     DECLARE v_vorher VARBINARY(256) DEFAULT '';
     DECLARE v_aktuell VARBINARY(256);
 
@@ -113,7 +111,7 @@ CREATE TABLE bezirk (
     CONSTRAINT ck_bezirk_suchname CHECK (suchname <> '')
 ) ENGINE = InnoDB;
 
--- Alternative Namen: Ortsteile, fruehere Bezirke, gebraeuchliche Schreibweisen.
+-- Weitere Namen fuer einen Bezirk, z. B. Ortsteile oder alte Bezirksnamen.
 CREATE TABLE bezirk_alias (
     id INT PRIMARY KEY AUTO_INCREMENT,
     bezirk_id INT NOT NULL,
@@ -140,7 +138,7 @@ FOR EACH ROW SET NEW.suchname = COALESCE(fn_text_normalisieren(NEW.name), '')$$
 
 DELIMITER ;
 
--- IDs = amtliche Laenderschluessel.
+-- Die IDs sind die offiziellen Laenderschluessel.
 INSERT INTO bundesland (id, name, kuerzel) VALUES
     (1, 'Schleswig-Holstein', 'SH'), (2, 'Hamburg', 'HH'), (3, 'Niedersachsen', 'NI'),
     (4, 'Bremen', 'HB'), (5, 'Nordrhein-Westfalen', 'NW'), (6, 'Hessen', 'HE'),
@@ -152,7 +150,7 @@ INSERT INTO bundesland (id, name, kuerzel) VALUES
 INSERT INTO ort (id, bundesland_id, name, ags, aktiv) VALUES
     (1, 11, 'Berlin', '11000000', 1);
 
--- IDs und Schluessel = Berliner Bezirksnummern.
+-- ID und Schluessel sind die Berliner Bezirksnummern.
 INSERT INTO bezirk (id, ort_id, name, schluessel) VALUES
     (1, 1, 'Mitte', '01'),
     (2, 1, 'Friedrichshain-Kreuzberg', '02'),
@@ -167,7 +165,7 @@ INSERT INTO bezirk (id, ort_id, name, schluessel) VALUES
     (11, 1, 'Lichtenberg', '11'),
     (12, 1, 'Reinickendorf', '12');
 
--- Berliner Ortsteile sowie fruehere Bezirksnamen (Hohenschoenhausen, Treptow).
+-- Berliner Ortsteile und die alten Bezirksnamen Hohenschoenhausen und Treptow.
 INSERT INTO bezirk_alias (bezirk_id, name) VALUES
     (1, 'Moabit'), (1, 'Hansaviertel'), (1, 'Tiergarten'), (1, 'Wedding'), (1, 'Gesundbrunnen'),
     (2, 'Friedrichshain'), (2, 'Kreuzberg'),
@@ -195,7 +193,7 @@ INSERT INTO bezirk_alias (bezirk_id, name) VALUES
     (12, 'Waidmannslust'), (12, 'Lübars'), (12, 'Wittenau'), (12, 'Märkisches Viertel'),
     (12, 'Borsigwalde');
 
--- Alle Schreibweisen je Bezirk, auch mit vorangestelltem oder angehaengtem Ortsnamen.
+-- Alle Schreibweisen, unter denen ein Bezirk gefunden wird, auch mit Ort davor oder dahinter ('Berlin-Mitte').
 CREATE OR REPLACE VIEW bezirk_suchbegriff AS
 WITH begriff AS (
     SELECT b.id AS bezirk_id, b.ort_id, b.suchname FROM bezirk b
@@ -214,7 +212,7 @@ UNION
 SELECT g.bezirk_id, g.ort_id, CONCAT(g.suchname, o.suchname)
 FROM begriff g JOIN ortsname o ON o.ort_id = g.ort_id;
 
--- Auswahlliste (Dropdown) fuer Oberflaechen: nur freigeschaltete Orte.
+-- Fuer das Dropdown in einer Oberflaeche. Zeigt nur Orte, die freigeschaltet sind.
 CREATE OR REPLACE VIEW bezirk_auswahl AS
 SELECT b.id AS bezirk_id, b.name AS bezirk, b.schluessel, o.id AS ort_id, o.name AS ort,
        bl.name AS bundesland
@@ -225,8 +223,8 @@ WHERE o.aktiv = 1;
 
 DELIMITER $$
 
--- Bezirk-ID zu einer frei eingegebenen Ortsangabe; NULL bei unbekannt oder mehrdeutig.
--- Erst exakte Schreibweise (inkl. Ortsteile), dann Tippfehler bis Distanz 1 (4-5 Zeichen) bzw. 2.
+-- Sucht zu einer frei eingetippten Ortsangabe den passenden Bezirk.
+-- Erst wird exakt gesucht, dann mit Tippfehlern (1 Fehler bei 4-5 Buchstaben, sonst 2). Unklar = NULL.
 CREATE FUNCTION fn_bezirk_id (p_text VARCHAR(200), p_ort_id INT)
 RETURNS INT
 READS SQL DATA
@@ -280,7 +278,7 @@ BEGIN
     RETURN v_treffer;
 END$$
 
--- Wie fn_bezirk_id, bricht aber mit verstaendlicher Meldung ab (fuer Importe).
+-- Fuer Importe: wie fn_bezirk_id, gibt aber einen Fehler aus statt NULL.
 CREATE FUNCTION fn_bezirk_id_pflicht (p_text VARCHAR(200))
 RETURNS INT
 READS SQL DATA
