@@ -1,0 +1,8 @@
+# Zugangsdaten der Oberflaeche (nie einchecken)
+ui/.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

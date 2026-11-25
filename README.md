@@ -30,6 +30,7 @@ auch die Grundlage für unsere Präsentation (Gliederung in
 12. [Designentscheidungen, Grenzen und Ausblick](#12-designentscheidungen-grenzen-und-ausblick)
 13. [Gliederung für die Präsentation](#13-gliederung-für-die-präsentation)
 14. [Glossar](#14-glossar)
+15. [Benutzungsoberfläche](#15-benutzungsoberfläche)
 
 ---
 
@@ -767,7 +768,8 @@ die Erkennungsfunktion übersetzt Freitext aus anderen Quellen in die Liste.
 - Gesundheitsmerkmale und Arbeitsmodell in den Score aufnehmen
 - Rückgabe eines Tieres (Vermittlung beenden, Tier wieder verfügbar)
 - Reservierung an eine bestimmte Bewerbung binden
-- eine Weboberfläche für Interessenten und Mitarbeitende
+- eine Weboberfläche für Interessenten und Mitarbeitende – inzwischen gebaut, siehe
+  [Abschnitt 15](#15-benutzungsoberfläche)
 
 ---
 
@@ -832,3 +834,73 @@ SELECT fn_bezirk_id('Neuköln', NULL), fn_bezirk_id('Prenzlauer Berg', NULL); --
 | Levenshtein-Distanz | Anzahl der Tippfehler (Buchstaben einfügen, löschen, ersetzen) zwischen zwei Wörtern |
 | Alias | alternativer Name, z. B. ein Ortsteil, der zu einem Bezirk gehört |
 | AGS | Amtlicher Gemeindeschlüssel, eindeutige Nummer jeder Gemeinde in Deutschland |
+
+---
+
+## 15. Benutzungsoberfläche
+
+Seit der Erweiterung gibt es zusätzlich zur Datenbank eine Oberfläche: eine Streamlit-Anwendung
+im Ordner [ui/](ui/). Die Idee dahinter ist die einer Vermittlungsplattform – wie eine
+Dating-Seite, nur dass das Match ein Tier ist, das ein Zuhause für immer sucht.
+
+Wichtig für die Bewertung des Projekts: **Die Oberfläche enthält keine Fachlogik.** Sie liest
+aus den vorhandenen Views und ruft die vorhandenen Prozeduren auf. Es gibt keine zweite
+Berechnung des Scores und keine zweite Stelle, an der Vermittlungsregeln stehen.
+
+### Rollen und was sie sehen
+
+| Rolle | Zugang | Bereiche |
+|---|---|---|
+| Besucher | kein Login nötig | Startseite mit dem Konzept, Tiergalerie |
+| Interessent | nur E-Mail-Adresse (kein Passwort) | Fragebogen (= Profil), eigene Matches mit Begründung, Merkliste, eigene Bewerbungen |
+| Mitarbeitende | E-Mail und Passwort | Übersicht des eigenen Standorts, Tiere verwalten, Bewerbungen, Termine, Reservieren, Vermitteln, Beenden |
+| Administration | E-Mail und Passwort | alles, dazu Gewichte, Mindestscore, Auswertung und Benutzerkonten |
+
+Interessenten kommen ausdrücklich **nicht** in den internen Bereich, Mitarbeitende **nicht**
+in die Adminsicht. Jede geschützte Seite prüft das selbst (`auth.require`), nicht nur das Menü.
+
+### Wo das Matching sichtbar wird
+
+- **Meine Matches:** die Vorschläge aus `sp_vorschlaege_fuer_interessent`, jeweils mit
+  Score und einem Aufklapper „Warum passt das?“ – darin die elf Teilpassungen aus
+  `matching_kriterien` als Balken, zusammen mit dem Gewicht und der Datenabdeckung.
+- **Alle Tiere:** jedes nicht vorgeschlagene Tier mit Ampel und Klartext – die Ausschlussgründe
+  und offenen Prüfungen aus `matching_entscheidung`, also genau die Abfrage aus `06_ausgabe`.
+- **Admin:** Gewichte und Mindestscore lassen sich ändern; daneben steht sofort, wie viele
+  Vorschläge es mit dem neuen Wert gäbe. Eine Gewichtssumme ungleich 100 wird abgelehnt,
+  weil die Datenbank dann gar keinen Score berechnet.
+
+### Anmeldung
+
+Die Datenbank kannte bisher keine Passwörter. Dafür gibt es ein zusätzliches Skript,
+`paws_and_match/08_oberflaeche/01_benutzerkonten.sql`: eine Tabelle `benutzerkonto`
+(E-Mail, bcrypt-Hash, Rolle, Verweis auf `mitarbeiter`) und je ein Demokonto pro
+Mitarbeiter plus ein Adminkonto. Es läuft **nach** den Testskripten aus
+[paws_and_match/README.md](paws_and_match/README.md), die bisherige Installationsreihenfolge
+bleibt also unberührt. Da Schritt 1 die Datenbank löscht, muss dieses Skript nach jeder
+Neuinstallation erneut ausgeführt werden.
+
+Demokonten (nur für den lokalen Betrieb): `team1@example.org` bis `team5@example.org` und
+`admin@example.org`, Passwort jeweils `paws2026`.
+
+### Starten
+
+```bash
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r ui/requirements.txt
+cp ui/.env.example ui/.env        # Host, Port, Benutzer, Passwort eintragen
+.venv/Scripts/python.exe -m streamlit run ui/app.py
+```
+
+Zugangsdaten stehen in `ui/.env` (nicht im Repository); die Voreinstellung passt zum
+lokalen Testserver auf Port 3399. Details, Aufbau und Konventionen: [ui/README.md](ui/README.md).
+
+### Qualitätssicherung
+
+Zusätzlich zu den SQL-Tests prüfen pytest-Tests die Oberfläche
+(`.venv/Scripts/python.exe -m pytest ui/tests -q`): dass Prozedur und View dasselbe liefern,
+dass der angezeigte Score die Summe der gewichteten Teilpassungen ist, dass Profile korrekt
+gespeichert und gelöscht werden, dass der Vermittlungsprozess inklusive Schutzregeln
+funktioniert, dass jede Seite fehlerfrei lädt und dass keine Rolle in einen fremden Bereich
+kommt. Die Tests legen eigene Daten ab ID 9001 an und räumen sie wieder weg – die Demodaten
+und die SQL-Tests bleiben unverändert.
