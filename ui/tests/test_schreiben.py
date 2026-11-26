@@ -130,8 +130,12 @@ def test_bewerbung_auf_nicht_verfuegbares_tier_wird_blockiert(aufraeumen) -> Non
     """Der Trigger trg_bewerbung_pruefen muss greifen, die Meldung muss ankommen."""
     nicht_verfuegbar = db.ein_wert("SELECT id FROM tier WHERE status <> 'verfuegbar' LIMIT 1")
     if nicht_verfuegbar is None:
+        # Bypass fuer den fail-closed Standort-Trigger (P0.2, trg_tier_standort_pruefen_update):
+        # roher UPDATE ohne queries.tier_speichern()/Prozeduraufruf.
         with db.transaktion() as cursor:
+            cursor.execute("SET @pm_ist_admin = 1")
             cursor.execute("UPDATE tier SET status = 'nicht_vermittelbar' WHERE id = 1")
+            cursor.execute("SET @pm_ist_admin = NULL")
         nicht_verfuegbar = 1
         zuruecksetzen = True
     else:
@@ -148,7 +152,9 @@ def test_bewerbung_auf_nicht_verfuegbares_tier_wird_blockiert(aufraeumen) -> Non
     finally:
         if zuruecksetzen:
             with db.transaktion() as cursor:
+                cursor.execute("SET @pm_ist_admin = 1")
                 cursor.execute("UPDATE tier SET status = 'verfuegbar' WHERE id = 1")
+                cursor.execute("SET @pm_ist_admin = NULL")
 
 
 def test_merkliste(aufraeumen) -> None:

@@ -21,10 +21,10 @@ cp ui/.env.example ui/.env        # Host, Port, Benutzer, Passwort anpassen
 
 Die App öffnet sich unter <http://localhost:8501>.
 
-**Voraussetzung:** Die Datenbank ist installiert (die 21 Skripte aus
+**Voraussetzung:** Die Datenbank ist installiert (die 22 Skripte aus
 [../paws_and_match/README.md](../paws_and_match/README.md)) **und** danach einmal
-`../paws_and_match/08_oberflaeche/01_benutzerkonten.sql` (Schritt 22, legt die Anmeldekonten
-an). Skript 1 löscht die Datenbank komplett – nach jeder Neuinstallation muss Schritt 22
+`../paws_and_match/08_oberflaeche/01_benutzerkonten.sql` (Schritt 23, legt die Anmeldekonten
+an). Skript 1 löscht die Datenbank komplett – nach jeder Neuinstallation muss Schritt 23
 deshalb erneut laufen.
 
 ## Rollen
@@ -36,7 +36,7 @@ deshalb erneut laufen.
 | Mitarbeitende | E-Mail + Passwort | interne Übersicht, Tiere verwalten, Bewerbungen und Vermittlung – **keine** Adminsicht |
 | Administration | E-Mail + Passwort | alles, zusätzlich Gewichte, Mindestscore, Auswertung, Konten |
 
-Demokonten (nur lokal): `team1@example.org` … `team5@example.org` und `admin@example.org`,
+Demokonten (nur lokal): `team1@example.org` … `team10@example.org` und `admin@example.org`,
 Passwort jeweils `paws2026`. Interessentenprofile aus den Demodaten findet man über
 `profil1@example.org` … `profil20@example.org`.
 

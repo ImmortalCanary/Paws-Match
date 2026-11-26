@@ -29,6 +29,11 @@ def _lauf(seite: str, zustand: dict) -> AppTest:
         "import bausteine\n"
         f"from seiten import {seite}\n"
         "bausteine.stil_laden()\n"
+        # Reihenfolge wie in app.py: flash_zeigen() vor dem Seitenaufbau, damit eine mit
+        # bausteine.flash_setzen() hinterlegte Meldung (siehe admin_matching.py) nach einem
+        # st.rerun() in diesem Testlauf ebenfalls sichtbar wird statt stillschweigend zu
+        # verschwinden.
+        "bausteine.flash_zeigen()\n"
         f"{seite}.zeige()\n"
     )
     test = AppTest.from_string(skript, default_timeout=90)
@@ -63,11 +68,15 @@ def test_mindestscore_slider_speichert_und_wirkt(alter_mindestscore) -> None:
 
     knopf = next(b for b in test.button if "Mindestscore übernehmen" in b.label)
     assert not knopf.disabled
-    # admin_matching.py ruft nach dem Speichern st.rerun() auf: die Erfolgsmeldung aus dem
-    # Klick-Durchlauf ist dadurch nicht mehr beobachtbar, wohl aber der gespeicherte Wert.
+    # admin_matching.py ruft nach dem Speichern bausteine.flash_setzen(...) + st.rerun() auf:
+    # die Erfolgsmeldung aus dem Klick-Durchlauf selbst ist dadurch nicht mehr beobachtbar
+    # (der Rerun bricht den Durchlauf ab), wohl aber auf dem nachfolgenden Durchlauf - genau das
+    # simuliert _lauf() durch den vorangestellten bausteine.flash_zeigen()-Aufruf.
     knopf.click().run()
     assert not test.exception
     assert float(queries.mindestscore()) == neuer_wert
+    erfolgsmeldungen = [e.value for e in test.success]
+    assert any("Mindestscore steht jetzt auf" in text for text in erfolgsmeldungen), erfolgsmeldungen
 
 
 def test_gewichtssumme_ungleich_100_wird_nicht_gespeichert(alte_gewichtung) -> None:

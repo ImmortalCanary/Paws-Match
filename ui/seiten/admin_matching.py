@@ -81,7 +81,7 @@ def zeige() -> None:
             except db.DatenbankFehler as fehler:
                 bausteine.fehler_anzeigen(fehler)
                 return
-            st.success("Gewichte gespeichert.")
+            bausteine.flash_setzen("Gewichte gespeichert.")
             st.rerun()
 
     with rechts:
@@ -95,16 +95,7 @@ def zeige() -> None:
         )
 
         try:
-            treffer = int(
-                db.ein_wert(
-                    "SELECT COUNT(*) FROM matching_score "
-                    "WHERE eignung = 'geeignet' AND tier_verfuegbar = 1 "
-                    "AND interessent_aktiv = 1 AND gewichtung_vollstaendig = 1 "
-                    "AND match_prozent >= %s",
-                    [neuer_wert],
-                )
-                or 0
-            )
+            treffer = queries.vorschlaege_vorschau(neuer_wert)
         except db.DatenbankFehler as fehler:
             bausteine.fehler_anzeigen(fehler)
             return
@@ -121,7 +112,7 @@ def zeige() -> None:
             except db.DatenbankFehler as fehler:
                 bausteine.fehler_anzeigen(fehler)
                 return
-            st.success(f"Mindestscore steht jetzt auf {neuer_wert:.0f} %.")
+            bausteine.flash_setzen(f"Mindestscore steht jetzt auf {neuer_wert:.0f} %.")
             st.rerun()
 
         st.divider()

@@ -125,6 +125,49 @@ def test_matches_zeigen_score_und_begruendung() -> None:
     assert any("Vorschläge" in t for t in [r.label for r in test.tabs])
 
 
+def test_matches_filter_tierart_zeigt_echte_werte() -> None:
+    """P5.4: Tierart-Multiselect muss die tatsaechlich genutzten Tierarten anbieten."""
+    test = _lauf("matches", INTERESSENT)
+    _ohne_fehler(test, "matches")
+    tierart_filter = next(m for m in test.multiselect if m.label == "Tierart")
+    assert set(tierart_filter.options) <= {
+        "Hund", "Katze", "Kaninchen", "Meerschweinchen", "Vogel", "Reptil", "Fisch",
+    }
+    assert tierart_filter.options, "Tierart-Filter sollte bei vorhandenen Vorschlaegen nicht leer sein"
+
+
+def test_matches_filter_mindestscore_auf_maximum_zeigt_hinweis_statt_crash() -> None:
+    """P5.4: Score-Slider-Grenzfall 100 % darf nicht abstuerzen, sondern einen Leer-Hinweis zeigen."""
+    test = _lauf("matches", INTERESSENT)
+    _ohne_fehler(test, "matches")
+    test.slider[0].set_value(100)
+    test.run()
+    _ohne_fehler(test, "matches")
+    assert any("Filtern" in i.value for i in test.info)
+
+
+def test_matches_filter_gesundheit_ohne_absturz_bei_tieren_ohne_merkmalen() -> None:
+    """P5.4: Checkbox "nur ohne belastende Gesundheitsmerkmale" darf bei Tieren ganz ohne
+    tier_gesundheit-Zeilen (gibt es unter den 100 Demotieren) nicht crashen."""
+    test = _lauf("matches", INTERESSENT)
+    _ohne_fehler(test, "matches")
+    checkbox = next(c for c in test.checkbox if "belastende" in c.label)
+    checkbox.check()
+    test.run()
+    _ohne_fehler(test, "matches")
+
+
+def test_matches_filter_status_multiselect_in_alle_tiere() -> None:
+    """P5.4: Status-Multiselect im Tab "Alle Tiere" muss die drei Eignungsstatus anbieten."""
+    test = _lauf("matches", INTERESSENT)
+    _ohne_fehler(test, "matches")
+    status_filter = next(m for m in test.multiselect if m.label == "Status")
+    assert status_filter.options
+    status_filter.select(status_filter.options[0])
+    test.run()
+    _ohne_fehler(test, "matches")
+
+
 def test_galerie_zeigt_tierkarten() -> None:
     test = _lauf("galerie")
     _ohne_fehler(test, "galerie")

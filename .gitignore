@@ -6,3 +6,8 @@ ui/.env
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Interne Teamorganisation (lokal, nicht fuer das Repository)
+/CLAUDE.md
+/.claude/
+/team/

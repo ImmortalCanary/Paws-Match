@@ -135,5 +135,7 @@ def zeige() -> None:
                 bausteine.fehler_anzeigen(fehler)
                 return
             st.session_state.pop("bewerbung_fuer", None)
-            st.success(f"Ihre Bewerbung für {tier['tiername']} ist beim Tierheim eingegangen.")
+            bausteine.flash_setzen(
+                f"Ihre Bewerbung für {tier['tiername']} ist beim Tierheim eingegangen."
+            )
             st.rerun()

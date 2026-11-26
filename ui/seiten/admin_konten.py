@@ -30,6 +30,7 @@ def zeige() -> None:
 def _konten() -> None:
     try:
         konten = auth.konten()
+        mitarbeitende = queries.mitarbeitende()
     except db.DatenbankFehler as fehler:
         bausteine.fehler_anzeigen(fehler)
         return
@@ -47,14 +48,14 @@ def _konten() -> None:
             rolle = st.selectbox("Rolle", [auth.MITARBEITER, auth.ADMIN],
                                  format_func=lambda r: auth.ROLLENNAMEN[r])
             ohne_konto = [
-                m for m in queries.mitarbeitende()
+                m for m in mitarbeitende
                 if m["id"] not in {k.get("mitarbeiter_id") for k in konten}
             ]
             mitarbeiter_id = st.selectbox(
                 "Mitarbeiter (nur bei Rolle Mitarbeitende)",
-                [None] + [m["id"] for m in queries.mitarbeitende()],
+                [None] + [m["id"] for m in mitarbeitende],
                 format_func=lambda i: "–" if i is None else next(
-                    f"{m['name']} ({m['standort']})" for m in queries.mitarbeitende()
+                    f"{m['name']} ({m['standort']})" for m in mitarbeitende
                     if m["id"] == i),
             )
             if ohne_konto:
@@ -65,6 +66,8 @@ def _konten() -> None:
             if st.form_submit_button("Konto anlegen", type="primary"):
                 if not email or not passwort:
                     st.error("E-Mail und Passwort werden gebraucht.")
+                elif not bausteine.email_gueltig(email):
+                    st.error("Bitte eine gültige E-Mail-Adresse angeben.")
                 else:
                     try:
                         auth.konto_anlegen(
@@ -73,7 +76,7 @@ def _konten() -> None:
                     except db.DatenbankFehler as fehler:
                         bausteine.fehler_anzeigen(fehler)
                     else:
-                        st.success("Konto angelegt.")
+                        bausteine.flash_setzen("Konto angelegt.")
                         st.rerun()
 
     with rechts:
@@ -104,36 +107,58 @@ def _konten() -> None:
                 except db.DatenbankFehler as fehler:
                     bausteine.fehler_anzeigen(fehler)
                 else:
+                    bausteine.flash_setzen(
+                        "Konto gesperrt." if gewaehlt["aktiv"] else "Konto freigeschaltet."
+                    )
                     st.rerun()
 
 
 def _organisation() -> None:
+    try:
+        standorte = queries.standorte()
+        mitarbeitende = queries.mitarbeitende()
+        interessenten = queries.interessenten(nur_aktive=False)
+    except db.DatenbankFehler as fehler:
+        bausteine.fehler_anzeigen(fehler)
+        return
+
     st.subheader("Standorte")
     bausteine.tabelle(
-        queries.standorte(), ["id", "name", "art", "tierheim", "ort", "bezirk", "plz", "kapazitaet"]
+        standorte, ["id", "name", "art", "tierheim", "ort", "bezirk", "plz", "kapazitaet"]
     )
     st.subheader("Mitarbeitende")
-    bausteine.tabelle(queries.mitarbeitende(), ["id", "name", "email", "standort"])
+    bausteine.tabelle(mitarbeitende, ["id", "name", "email", "standort"])
     st.subheader("Interessentenprofile")
     bausteine.tabelle(
-        queries.interessenten(nur_aktive=False),
+        interessenten,
         ["id", "pseudonym", "email", "bezirk", "aktiv", "bewerbungen", "vorschlaege"],
     )
 
 
 def _kataloge() -> None:
-    kataloge = {
-        "Tierarten": queries.tierarten(),
-        "Rassen": queries.rassen(),
-        "Charakterzüge": queries.charakterzuege(),
-        "Bedürfnisse": queries.beduerfnisse(),
-        "Größen": queries.groessen(),
-        "Pflegeaufwand": queries.pflegeaufwaende(),
-        "Wohnformen": queries.wohnformen(),
-        "Arbeitsmodelle": queries.arbeitsmodelle(),
-        "Gesundheitsmerkmale": queries.gesundheitsmerkmale(),
-        "Bezirke": queries.bezirke(),
-        "Suchzonen": queries.suchzonen(),
+    auswahl = st.selectbox(
+        "Katalog",
+        [
+            "Tierarten", "Rassen", "Charakterzüge", "Bedürfnisse", "Größen", "Pflegeaufwand",
+            "Wohnformen", "Arbeitsmodelle", "Gesundheitsmerkmale", "Bezirke", "Suchzonen",
+        ],
+    )
+    lader = {
+        "Tierarten": queries.tierarten,
+        "Rassen": queries.rassen,
+        "Charakterzüge": queries.charakterzuege,
+        "Bedürfnisse": queries.beduerfnisse,
+        "Größen": queries.groessen,
+        "Pflegeaufwand": queries.pflegeaufwaende,
+        "Wohnformen": queries.wohnformen,
+        "Arbeitsmodelle": queries.arbeitsmodelle,
+        "Gesundheitsmerkmale": queries.gesundheitsmerkmale,
+        "Bezirke": queries.bezirke,
+        "Suchzonen": queries.suchzonen,
     }
-    auswahl = st.selectbox("Katalog", list(kataloge))
-    bausteine.tabelle(kataloge[auswahl])
+    try:
+        daten = lader[auswahl]()
+    except db.DatenbankFehler as fehler:
+        bausteine.fehler_anzeigen(fehler)
+        return
+    bausteine.tabelle(daten)

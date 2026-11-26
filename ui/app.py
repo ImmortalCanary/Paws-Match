@@ -132,4 +132,9 @@ ziel = st.session_state.pop("ziel", None)
 if ziel and ziel in st.session_state["seiten"]:
     st.switch_page(st.session_state["seiten"][ziel])
 
+# Erfolgsmeldung aus einem vorigen Durchlauf anzeigen (siehe bausteine.flash_setzen) - muss
+# nach einem moeglichen switch_page oben stehen, sonst wuerde sie im "Durchgangslauf" gerendert
+# und durch den Seitenwechsel sofort wieder verworfen, statt auf der Zielseite zu erscheinen.
+bausteine.flash_zeigen()
+
 navigation.run()

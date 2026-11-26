@@ -14,6 +14,7 @@ TIERSTATUS = {
     "reserviert": "Reserviert",
     "vermittelt": "Vermittelt",
     "nicht_vermittelbar": "Nicht vermittelbar",
+    "geloescht": "Archiviert",
 }
 
 EIGNUNG = {

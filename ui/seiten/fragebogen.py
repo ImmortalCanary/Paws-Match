@@ -22,8 +22,12 @@ def zeige() -> None:
         if st.session_state.get("fragebogen_neu") is not True:
             return
 
-    profil = queries.interessent(profil_id) if profil_id else {}
-    wuensche = queries.interessent_wuensche(profil_id) if profil_id else {}
+    try:
+        profil = queries.interessent(profil_id) if profil_id else {}
+        wuensche = queries.interessent_wuensche(profil_id) if profil_id else {}
+    except db.DatenbankFehler as fehler:
+        bausteine.fehler_anzeigen(fehler)
+        return
 
     if profil_id:
         st.title("Mein Profil")
@@ -84,7 +88,24 @@ def _einstieg() -> None:
 
 
 def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str, Any]) -> None:
-    tierarten = queries.tierarten()
+    # Alle Katalog-/Stammdaten vor dem Formular laden, damit ein DB-Fehler hier verstaendlich
+    # abgefangen werden kann, statt das Formular halb aufgebaut abstuerzen zu lassen (analog
+    # mitarbeiter_tiere.py._formular).
+    try:
+        tierarten = queries.tierarten()
+        bezirke = queries.bezirke()
+        suchzonen = queries.suchzonen()
+        wohnformen = queries.wohnformen()
+        pflegeaufwaende = queries.pflegeaufwaende()
+        arbeitsmodelle = queries.arbeitsmodelle()
+        groessen = queries.groessen()
+        charakterzuege = queries.charakterzuege()
+        standorte = queries.standorte()
+        beduerfnisse = queries.beduerfnisse()
+    except db.DatenbankFehler as fehler:
+        bausteine.fehler_anzeigen(fehler)
+        return
+
     daten: dict[str, Any] = {}
     neue_wuensche: dict[str, Any] = {}
 
@@ -104,14 +125,14 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
                 help="Damit finden Sie Ihr Profil später wieder.",
             )
             daten["bezirk_id"] = formulare.auswahl(
-                "Wohnbezirk", queries.bezirke(), profil.get("bezirk_id"),
+                "Wohnbezirk", bezirke, profil.get("bezirk_id"),
                 idfeld="bezirk_id", namensfeld="bezirk", leer_text="Bitte wählen",
                 hilfe="Wird für die Entfernung zum Tierheim gebraucht.",
             )
             spalte_a, spalte_b = st.columns(2)
             with spalte_a:
                 daten["max_suchzone_id"] = formulare.auswahl(
-                    "Wie weit darf gesucht werden?", queries.suchzonen(),
+                    "Wie weit darf gesucht werden?", suchzonen,
                     profil.get("max_suchzone_id"), leer_text="Egal",
                     hilfe="Berlin, Berliner Umland oder ganz Brandenburg. Die Auswahl ist eine feste Grenze.",
                 )
@@ -127,7 +148,7 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
                 daten["wohnflaeche"] = formulare.zahl(
                     "Wohnfläche in m²", profil.get("wohnflaeche"), maximum=1000.0, schritt=5.0)
                 daten["wohnform_id"] = formulare.auswahl(
-                    "Wohnform", queries.wohnformen(), profil.get("wohnform_id"))
+                    "Wohnform", wohnformen, profil.get("wohnform_id"))
                 daten["etage"] = formulare.zahl(
                     "Etage", profil.get("etage"), maximum=50.0, schritt=1.0,
                     hilfe="0 bedeutet Erdgeschoss.")
@@ -165,14 +186,14 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
                     profil.get("allein_stunden"), maximum=24.0, schritt=0.5,
                     hilfe="Zeit und Alleinzeit dürfen zusammen höchstens 24 Stunden ergeben.")
                 daten["arbeitsmodell_id"] = formulare.auswahl(
-                    "Arbeitssituation", queries.arbeitsmodelle(), profil.get("arbeitsmodell_id"))
+                    "Arbeitssituation", arbeitsmodelle, profil.get("arbeitsmodell_id"))
                 daten["budget"] = formulare.zahl(
                     "Budget pro Monat in €", profil.get("budget"), maximum=5000.0, schritt=10.0)
             with spalte_b:
                 daten["aktivitaet"] = formulare.stufe(
                     "Eigenes Aktivitätslevel", profil.get("aktivitaet"), minimum=1, maximum=5,
                     hilfe="1 = ruhig, 5 = sehr aktiv.")
-                pflege_optionen = queries.pflegeaufwaende()
+                pflege_optionen = pflegeaufwaende
                 daten["max_pflegeaufwand_id"] = formulare.auswahl(
                     "Höchster Pflegeaufwand, den Sie leisten möchten",
                     pflege_optionen, profil.get("max_pflegeaufwand_id"),
@@ -196,7 +217,7 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
                 "Welche Tierarten kommen infrage?", tierarten, wuensche.get("tierarten", []),
                 hilfe="Ohne Angabe bleibt die Prüfung offen – es gibt dann keine Vorschläge.")
             neue_wuensche["groessen"] = formulare.mehrfachauswahl(
-                "Bevorzugte Tiergröße (mehrere möglich)", queries.groessen(),
+                "Bevorzugte Tiergröße (mehrere möglich)", groessen,
                 wuensche.get("groessen", []),
                 hilfe="Nur auswählen, wenn Ihnen die Größe wichtig ist. Ohne Auswahl spielt "
                      "sie beim Matching keine Rolle.")
@@ -215,10 +236,10 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
                     "höchstens … Jahre alt", profil.get("wunschalter_max"),
                     maximum=40.0, schritt=1.0)
             neue_wuensche["charakter"] = formulare.mehrfachauswahl(
-                "Gewünschte Charakterzüge", queries.charakterzuege(),
+                "Gewünschte Charakterzüge", charakterzuege,
                 wuensche.get("charakter", []))
             neue_wuensche["standorte"] = formulare.mehrfachauswahl(
-                "Wunschstandorte (optional)", queries.standorte(), wuensche.get("standorte", []))
+                "Wunschstandorte (optional)", standorte, wuensche.get("standorte", []))
 
             st.markdown("**Erfahrung mit dieser Tierart**")
             st.caption(
@@ -246,7 +267,7 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
             )
             beduerfnis_alt = wuensche.get("beduerfnisse", {}) or {}
             antworten: dict[int, Any] = {}
-            for beduerfnis in queries.beduerfnisse():
+            for beduerfnis in beduerfnisse:
                 if beduerfnis["id"] in queries.BEDUERFNIS_MIT_EIGENEM_FELD:
                     continue
                 antworten[beduerfnis["id"]] = formulare.ja_nein(
@@ -264,6 +285,9 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
 
     if not daten["pseudonym"].strip() or not daten["email"].strip():
         st.error("Anzeigename und E-Mail-Adresse werden gebraucht.")
+        return
+    if not bausteine.email_gueltig(daten["email"]):
+        st.error("Bitte eine gültige E-Mail-Adresse angeben.")
         return
     if daten["bezirk_id"] is None:
         st.error("Bitte einen Wohnbezirk auswählen – ohne ihn kann das Profil nicht aktiv sein.")
@@ -294,7 +318,7 @@ def _formular(profil_id: int | None, profil: dict[str, Any], wuensche: dict[str,
 
     st.session_state.pop("fragebogen_neu", None)
     auth.profil_uebernehmen({"id": neue_id, "email": daten["email"]})
-    st.success("Profil gespeichert.")
+    bausteine.flash_setzen("Profil gespeichert.")
     bausteine.zur_seite("matches")
 
 
@@ -322,7 +346,7 @@ def _profil_loeschen(profil_id: int) -> None:
                 bausteine.fehler_anzeigen(fehler)
                 return
             auth.abmelden()
-            st.success(
+            bausteine.flash_setzen(
                 "Profil wurde gelöscht." if ergebnis == "geloescht"
                 else "Profil wurde anonymisiert, die Vorgeschichte bleibt beim Tierheim."
             )

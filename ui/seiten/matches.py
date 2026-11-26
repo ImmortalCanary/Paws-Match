@@ -34,24 +34,28 @@ def zeige() -> None:
     )
 
     try:
-        vorschlaege = queries.vorschlaege_fuer_interessent(profil_id)
-        uebersicht = queries.uebersicht_fuer_interessent(profil_id)
+        vorschlaege_alle = queries.vorschlaege_fuer_interessent(profil_id)
+        uebersicht_alle = queries.uebersicht_fuer_interessent(profil_id)
     except db.DatenbankFehler as fehler:
         bausteine.fehler_anzeigen(fehler)
         return
 
-    _einzelnes_tier(profil_id, uebersicht)
+    _einzelnes_tier(profil_id, uebersicht_alle)
+
+    vorschlaege, uebersicht = _filter_anwenden(vorschlaege_alle, uebersicht_alle)
 
     reiter_a, reiter_b = st.tabs(
         [f"Meine Vorschläge ({len(vorschlaege)})", f"Alle Tiere ({len(uebersicht)})"]
     )
 
     with reiter_a:
-        if not vorschlaege:
+        if not vorschlaege_alle:
             st.info(
                 "Im Moment gibt es keinen Vorschlag. Im Reiter „Alle Tiere“ steht bei jedem "
                 "Tier, woran es liegt – oft fehlen nur ein paar Angaben im Profil."
             )
+        elif not vorschlaege:
+            st.info("Mit diesen Filtern ist gerade kein Vorschlag zu sehen. Bitte Filter anpassen.")
         gemerkt = queries.gemerkte_ids(profil_id)
         beworben = {b["tier_id"] for b in queries.bewerbungen(interessent_id=profil_id)}
         for vorschlag in vorschlaege:
@@ -63,8 +67,79 @@ def zeige() -> None:
             "Warum ein Tier nicht vorgeschlagen wird, ist genauso wichtig wie der Vorschlag "
             "selbst. 🟢 geeignet · 🟡 Angaben fehlen · 🔴 ausgeschlossen"
         )
-        for zeile in uebersicht:
+        eignungen = sorted({z["eignung"] for z in uebersicht})
+        gewaehlte_eignung = st.multiselect(
+            "Status",
+            eignungen,
+            format_func=lambda e: f"{labels.EIGNUNG_AMPEL.get(e, '')} {labels.mit_umlauten(e)}".strip(),
+            key="matches_filter_eignung",
+        )
+        sichtbar = [
+            z for z in uebersicht if not gewaehlte_eignung or z["eignung"] in gewaehlte_eignung
+        ]
+        if not uebersicht:
+            st.info("Mit diesen Filtern ist gerade kein Tier zu sehen. Bitte Filter anpassen.")
+        elif not sichtbar:
+            st.info("Mit diesem Status ist gerade kein Tier zu sehen. Bitte Auswahl anpassen.")
+        for zeile in sichtbar:
             _uebersichtszeile(zeile, profil_id)
+
+
+def _filter_anwenden(
+    vorschlaege: list[dict[str, Any]], uebersicht: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Rein python-seitige Filterung der bereits von der Datenbank gelieferten Listen.
+
+    Keine neue Matching-Logik: es werden nur Zeilen aus `vorschlaege`/`uebersicht`
+    (bzw. je Tier `queries.tier_gesundheit`) weggelassen, nichts neu berechnet.
+    """
+    tierarten = sorted({z["tierart"] for z in uebersicht if z.get("tierart")})
+
+    with st.container(border=True):
+        st.markdown("**Filter**")
+        spalte_a, spalte_b, spalte_c = st.columns([2, 2, 2])
+        with spalte_a:
+            gewaehlte_tierarten = st.multiselect(
+                "Tierart", tierarten, key="matches_filter_tierart"
+            )
+        with spalte_b:
+            mindestscore = st.slider(
+                "Mindest-Score (%)", 0, 100, 0, step=5, key="matches_filter_score"
+            )
+        with spalte_c:
+            nur_ohne_belastung = st.checkbox(
+                "Nur ohne belastende Gesundheitsmerkmale", key="matches_filter_gesundheit"
+            )
+
+    belastete_tiere: set[int] = set()
+    if nur_ohne_belastung:
+        alle_tier_ids = {z["tier_id"] for z in uebersicht} | {v["tier_id"] for v in vorschlaege}
+        for tier_id in alle_tier_ids:
+            try:
+                merkmale = queries.tier_gesundheit(tier_id)
+            except db.DatenbankFehler as fehler:
+                bausteine.fehler_anzeigen(fehler)
+                nur_ohne_belastung = False
+                belastete_tiere.clear()
+                break
+            if any(m.get("belastend") for m in merkmale):
+                belastete_tiere.add(tier_id)
+
+    def _behalten(zeile: dict[str, Any]) -> bool:
+        if gewaehlte_tierarten and zeile.get("tierart") not in gewaehlte_tierarten:
+            return False
+        if mindestscore > 0:
+            score = zeile.get("match_prozent")
+            if score is None or float(score) < mindestscore:
+                return False
+        if nur_ohne_belastung and zeile["tier_id"] in belastete_tiere:
+            return False
+        return True
+
+    return (
+        [v for v in vorschlaege if _behalten(v)],
+        [z for z in uebersicht if _behalten(z)],
+    )
 
 
 def _einzelnes_tier(profil_id: int, uebersicht: list[dict[str, Any]]) -> None:
@@ -106,7 +181,7 @@ def _vorschlagskarte(profil_id: int, vorschlag: dict[str, Any], gemerkt: bool,
         with wert:
             st.markdown(
                 f'<div style="text-align:center"><span class="{bausteine.score_klasse(score)}">'
-                f'{score:.1f} %</span><br><span style="font-size:.78rem;color:#7A6A5D">'
+                f'{score:.1f} %</span><br><span style="font-size:.78rem;color:#7A7262">'
                 f'Übereinstimmung</span></div>',
                 unsafe_allow_html=True,
             )
@@ -164,7 +239,7 @@ def _bewerbungsformular(profil_id: int, tier_id: int, tiername: str) -> None:
             bausteine.fehler_anzeigen(fehler)
             return
         st.session_state.pop("bewerbung_fuer", None)
-        st.success(f"Ihre Bewerbung für {tiername} ist beim Tierheim eingegangen.")
+        bausteine.flash_setzen(f"Ihre Bewerbung für {tiername} ist beim Tierheim eingegangen.")
         st.rerun()
 
 

@@ -27,10 +27,10 @@ def zeige() -> None:
 
     links, rechts = st.columns([1, 1])
     with links:
-        if st.button("💛 Jetzt Perfect Match finden", type="primary", use_container_width=True):
+        if st.button("Jetzt Perfect Match finden", type="primary", use_container_width=True):
             bausteine.zur_seite("profil")
     with rechts:
-        if st.button("🐾 Erst einmal Tiere ansehen", use_container_width=True):
+        if st.button("Erst einmal Tiere ansehen", use_container_width=True):
             bausteine.zur_seite("tiere")
 
     st.write("")
@@ -73,7 +73,11 @@ def zeige() -> None:
         return
 
     st.subheader("Paws & Match in Zahlen")
-    zahlen = queries.kennzahlen()
+    try:
+        zahlen = queries.kennzahlen()
+    except db.DatenbankFehler as fehler:
+        bausteine.fehler_anzeigen(fehler)
+        return
     spalten = st.columns(5)
     bausteine.kennzahl(spalten[0], zahlen.get("tiere_verfuegbar"), "Tiere warten")
     bausteine.kennzahl(spalten[1], zahlen.get("standorte"), "Standorte")

@@ -145,7 +145,7 @@ def _terminformular(bewerbung_id: int, mitarbeiter_id: int | None) -> None:
             except db.DatenbankFehler as fehler:
                 bausteine.fehler_anzeigen(fehler)
                 return
-            st.success("Termin eingetragen.")
+            bausteine.flash_setzen("Termin eingetragen.")
             st.rerun()
 
 
@@ -253,5 +253,5 @@ def _ausfuehren(aktion: Any, erfolgsmeldung: str) -> None:
     except db.DatenbankFehler as fehler:
         bausteine.fehler_anzeigen(fehler)
         return
-    st.success(erfolgsmeldung)
+    bausteine.flash_setzen(erfolgsmeldung)
     st.rerun()

@@ -30,7 +30,7 @@ def zeige() -> None:
             st.error("E-Mail-Adresse oder Passwort stimmt nicht, oder das Konto ist gesperrt.")
             return
         auth.anmelden(konto)
-        st.success(f"Willkommen, {konto.get('mitarbeiter_name') or konto['email']}!")
+        bausteine.flash_setzen(f"Willkommen, {konto.get('mitarbeiter_name') or konto['email']}!")
         bausteine.zur_seite("uebersicht" if konto["rolle"] == auth.MITARBEITER else "matching")
 
     with st.expander("Demokonten für die Vorführung"):
@@ -38,7 +38,7 @@ def zeige() -> None:
             """
 | Konto | Rolle | Passwort |
 |---|---|---|
-| `team1@example.org` … `team5@example.org` | Mitarbeitende (je ein Standort) | `paws2026` |
+| `team1@example.org` … `team10@example.org` | Mitarbeitende (je ein Standort) | `paws2026` |
 | `admin@example.org` | Administration | `paws2026` |
 
 Die Konten legt das Skript `paws_and_match/08_oberflaeche/01_benutzerkonten.sql` an.

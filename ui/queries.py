@@ -9,7 +9,17 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Sequence
 
-from db import abfrage, ein_wert, eine_zeile, erste_zeilen, prozedur_mit_rueckgabe, transaktion
+import mysql.connector
+
+from db import (
+    DatenbankFehler,
+    abfrage,
+    ein_wert,
+    eine_zeile,
+    erste_zeilen,
+    prozedur_mit_rueckgabe,
+    transaktion,
+)
 
 # --- Kataloge (Auswahllisten) -----------------------------------------------------------
 
@@ -223,17 +233,45 @@ def tier_speichern(
     charakter_ids: Sequence[int],
     beduerfnis_ids: Sequence[int],
     tier_id: int | None = None,
+    mitarbeiter_id: int | None = None,
+    ist_admin: bool = False,
+    anlage_token: str | None = None,
 ) -> int:
-    """Tier anlegen oder aendern, zusammen mit Charakterzuegen und Beduerfnissen."""
+    """Tier anlegen oder aendern, zusammen mit Charakterzuegen und Beduerfnissen.
+
+    `mitarbeiter_id`/`ist_admin` werden als Session-Variablen gesetzt, bevor auf `tier`
+    geschrieben wird - die Standortberechtigungspruefung selbst steht ausschliesslich in den
+    Triggern `BEFORE INSERT/UPDATE ON tier` (siehe 01_grundlage/03_tabellen_anlegen.sql),
+    hier wird nichts nachgerechnet.
+
+    `anlage_token` ist eine serverseitige Mehrfachklick-Sperre beim Neuanlegen (tier_id is
+    None): ein Doppel-Submit mit demselben Token (z. B. durch einen hängenden Request und
+    einen zweiten Klick) erzeugt dank der PK-Eindeutigkeit von tier_anlage_token.token kein
+    zweites Tier, sondern liefert die ID des zuerst angelegten Tieres zurueck.
+    """
     werte = {spalte: daten.get(spalte) for spalte in TIER_SPALTEN}
     with transaktion() as cursor:
+        cursor.execute(
+            "SET @pm_mitarbeiter_id = %s, @pm_ist_admin = %s",
+            (mitarbeiter_id, 1 if ist_admin else 0),
+        )
         if tier_id is None:
+            if anlage_token:
+                vorhandene_id = _token_reservieren(cursor, anlage_token)
+                if vorhandene_id is not None:
+                    cursor.execute("SET @pm_mitarbeiter_id = NULL, @pm_ist_admin = NULL")
+                    return vorhandene_id
             spalten = ", ".join(werte)
             platzhalter = ", ".join(["%s"] * len(werte))
             cursor.execute(
                 f"INSERT INTO tier ({spalten}) VALUES ({platzhalter})", tuple(werte.values())
             )
             tier_id = cursor.lastrowid
+            if anlage_token:
+                cursor.execute(
+                    "UPDATE tier_anlage_token SET tier_id = %s WHERE token = %s",
+                    (tier_id, anlage_token),
+                )
         else:
             zuweisung = ", ".join(f"{spalte} = %s" for spalte in werte)
             cursor.execute(
@@ -241,7 +279,39 @@ def tier_speichern(
             )
         _zuordnung_setzen(cursor, "tier_charakter", "tier_id", tier_id, "charakter_id", charakter_ids)
         _zuordnung_setzen(cursor, "tier_beduerfnis", "tier_id", tier_id, "beduerfnis_id", beduerfnis_ids)
+        # Session-Variablen wieder loeschen, nicht auf dem gepoolten Connection-Objekt stehen
+        # lassen - analog zum Muster in den Prozeduren (z. B. 05_prozeduren/05_vermitteln.sql),
+        # die ihren eigenen @pm_ist_admin-Bypass ebenfalls direkt danach zuruecksetzen.
+        cursor.execute("SET @pm_mitarbeiter_id = NULL, @pm_ist_admin = NULL")
         return tier_id
+
+
+def _token_reservieren(cursor: Any, token: str) -> int | None:
+    """Idempotenz-Mutex fuer tier_speichern: versucht den Token zu belegen.
+
+    Rueckgabe: None, wenn der Token neu ist (der Aufrufer soll das Tier jetzt anlegen).
+    Eine Tier-ID, wenn dieser Token schon einmal erfolgreich zu Ende verarbeitet wurde -
+    dann soll der Aufrufer NICHT erneut einfuegen, sondern diese ID verwenden.
+    """
+    try:
+        cursor.execute("INSERT INTO tier_anlage_token (token) VALUES (%s)", (token,))
+    except mysql.connector.Error as fehler:
+        if getattr(fehler, "errno", None) != 1062:
+            raise
+        # FOR UPDATE statt einer einfachen Abfrage: Ein gleichzeitiger zweiter Aufruf mit
+        # demselben Token blockiert hier an der vorigen INSERT-Zeile, bis die erste Transaktion
+        # committet hat (derselbe PK-Konflikt) - eine normale Abfrage wuerde dank REPEATABLE
+        # READ weiterhin den alten Schnappschuss sehen, in dem die Zeile noch gar nicht
+        # existiert. FOR UPDATE erzwingt einen frischen Lesezugriff auf den zuletzt
+        # committeten Stand, sieht die inzwischen gesetzte tier_id also zuverlaessig.
+        cursor.execute(
+            "SELECT tier_id FROM tier_anlage_token WHERE token = %s FOR UPDATE", (token,)
+        )
+        treffer = cursor.fetchone()
+        if treffer and treffer.get("tier_id"):
+            return treffer["tier_id"]
+        raise DatenbankFehler("Wird bereits gespeichert, bitte kurz warten.") from fehler
+    return None
 
 
 def _zuordnung_setzen(
@@ -273,11 +343,11 @@ INTERESSENT_SPALTEN = [
 ]
 # "erfahrung" (allgemeine Tiererfahrung) wird bewusst NICHT mehr geschrieben: das Matching
 # liest ausschliesslich interessent_tiererfahrung (je Tierart); die allgemeine Spalte war
-# eine zweite, ungenutzte Abfrage derselben Information (siehe AGENTS.md Abschnitt 9).
+# eine zweite, ungenutzte Abfrage derselben Information (siehe ENTWICKLUNG.md Abschnitt 9).
 
 # Diese Beduerfnisse haben bereits ein eigenes strukturiertes Feld im Profil und werden daher
 # nicht noch einmal einzeln abgefragt; die Bestaetigung wird beim Speichern automatisch daraus
-# abgeleitet. IDs wie in AGENTS.md Abschnitt 4 dokumentiert (1 Medikamente, 2 gesicherter
+# abgeleitet. IDs wie in ENTWICKLUNG.md Abschnitt 4 dokumentiert (1 Medikamente, 2 gesicherter
 # Balkon, 4 Training) - dieselben IDs, auf die auch matching_entscheidung.sql sich bezieht.
 BEDUERFNIS_AUS_PROFILFELD = {
     1: "medizin_bereit",
@@ -412,6 +482,17 @@ def interessent_loeschen(interessent_id: int) -> str:
     """sp_interessent_loeschen: 'geloescht' oder 'anonymisiert'."""
     ergebnis = prozedur_mit_rueckgabe("sp_interessent_loeschen", (interessent_id, ""))
     return str(ergebnis[1]) if len(ergebnis) > 1 else ""
+
+
+def tier_loeschen(tier_id: int, mitarbeiter_id: int | None, ist_admin: bool) -> str:
+    """sp_tier_loeschen: 'geloescht' (Hard-Delete, keine Bewerbungshistorie) oder
+    'archiviert' (Soft-Delete, es gab schon mindestens eine Bewerbung). Die eigentliche
+    Standortberechtigungs- und Historienpruefung liegt in der Prozedur, hier nur Aufruf
+    und Rueckgabe des OUT-Parameters."""
+    ergebnis = prozedur_mit_rueckgabe(
+        "sp_tier_loeschen", (tier_id, mitarbeiter_id, 1 if ist_admin else 0, "")
+    )
+    return str(ergebnis[3]) if len(ergebnis) > 3 else ""
 
 
 # --- Matching ---------------------------------------------------------------------------
@@ -720,6 +801,23 @@ def eignungsverteilung() -> list[dict[str, Any]]:
 def score_verteilung() -> list[dict[str, Any]]:
     return abfrage(
         "SELECT match_prozent, datenabdeckung_prozent FROM matching_vorschlaege ORDER BY match_prozent"
+    )
+
+
+def vorschlaege_vorschau(mindestscore: float) -> int:
+    """Wie viele Paare bei einem (ggf. noch nicht gespeicherten) Mindestscore vorgeschlagen
+    wuerden - fuer die "was-waere-wenn"-Vorschau beim Verschieben des Reglers in
+    admin_matching.py. Liest aus `matching_vorschlaege_alle` (dieselbe Basis wie
+    `matching_vorschlaege`, nur ohne die gespeicherte Mindestscore-Filterung), damit das
+    Filterpraedikat (geeignet/verfuegbar/aktiv/Gewichtung vollstaendig) nicht hier in Python
+    erneut nachgebaut wird.
+    """
+    return int(
+        ein_wert(
+            "SELECT COUNT(*) FROM matching_vorschlaege_alle WHERE match_prozent >= %s",
+            [mindestscore],
+        )
+        or 0
     )
 
 

@@ -17,11 +17,16 @@ def vorgang():
     """Legt Tier, Profil und Bewerbung an und raeumt danach alles wieder weg."""
     standort_id = int(db.ein_wert("SELECT standort_id FROM mitarbeiter WHERE id = 1"))
     with db.transaktion() as cursor:
+        # Bypass fuer den fail-closed Standort-Trigger (P0.2, trg_tier_standort_pruefen_insert):
+        # dieser rohe INSERT ohne queries.tier_speichern()/Prozeduraufruf braucht die
+        # Session-Variable, sonst blockiert der Trigger die Testfixture selbst.
+        cursor.execute("SET @pm_ist_admin = 1")
         cursor.execute(
             "INSERT INTO tier (id, standort_id, tierart_id, name, status)"
             " VALUES (9001, %s, 1, 'Testtier', 'verfuegbar')",
             (standort_id,),
         )
+        cursor.execute("SET @pm_ist_admin = NULL")
         cursor.execute(
             "INSERT INTO interessent (id, pseudonym, email, bezirk_id, aktiv)"
             " VALUES (9001, 'Testprofil', 'prozess9001@example.org', 1, 1)"
@@ -35,8 +40,10 @@ def vorgang():
     yield daten
 
     with db.transaktion() as cursor:
+        cursor.execute("SET @pm_ist_admin = 1")
         cursor.execute("UPDATE tier SET reserviert_fuer_bewerbung_id = NULL, "
                        "status = 'verfuegbar' WHERE id = 9001")
+        cursor.execute("SET @pm_ist_admin = NULL")
         cursor.execute("DELETE FROM vermittlung WHERE tier_id = 9001")
         cursor.execute("DELETE FROM termin WHERE bewerbung_id = 9001")
         cursor.execute("DELETE FROM bewerbung WHERE id = 9001")

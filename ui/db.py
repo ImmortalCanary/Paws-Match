@@ -18,7 +18,7 @@ from mysql.connector import pooling
 ORDNER = Path(__file__).resolve().parent
 load_dotenv(ORDNER / ".env")
 
-# Standardwerte passen zum portablen Testserver aus context/AGENTS.md, Abschnitt 7.
+# Standardwerte passen zum portablen Testserver aus context/ENTWICKLUNG.md, Abschnitt 7.
 EINSTELLUNGEN = {
     "host": os.getenv("PAWS_DB_HOST", "127.0.0.1"),
     "port": int(os.getenv("PAWS_DB_PORT", "3399")),
@@ -179,6 +179,9 @@ _CONSTRAINT_TEXTE = {
     "ck_interessent_max_entfernung":
         "Die Entfernung muss zwischen 5 und 250 km liegen und ein Vielfaches von 5 sein.",
     "ck_interessent_email": "Bitte eine gültige E-Mail-Adresse angeben.",
+    "ck_mitarbeiter_email": "Bitte eine gültige E-Mail-Adresse angeben.",
+    "ck_benutzerkonto_email": "Bitte eine gültige E-Mail-Adresse angeben.",
+    "ck_tierheim_email": "Bitte eine gültige E-Mail-Adresse angeben.",
     "ck_interessent_aktivitaet": "Das Aktivitätslevel muss zwischen 1 und 5 liegen.",
     "ck_interessent_erfahrung": "Die Erfahrung muss zwischen 0 und 5 liegen.",
     "ck_interessent_zeit": "Die Betreuungszeit muss zwischen 0 und 24 Stunden liegen.",

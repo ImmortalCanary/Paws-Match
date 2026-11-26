@@ -12,11 +12,14 @@ import db
 import labels
 import queries
 
-# Statusfarben (fest, nie fuer Serien verwendet) und ein einzelner Blauton fuer Mengen.
-FARBE_GUT = "#0ca30c"
-FARBE_OFFEN = "#fab219"
-FARBE_KRITISCH = "#d03b3b"
-FARBE_MENGE = "#2a78d6"
+# Statusfarben (fest, nie fuer Serien verwendet) - an das Farbsystem aus bausteine.py
+# angelehnt (dieselben Toene wie die Score-Badges): Salbeigruen fuer "gut"/Mengenbalken,
+# Bernstein fuer "offen", gedaempftes Rot fuer "kritisch". Bewusst kein zusaetzlicher
+# Blauton mehr, um nicht eine weitere Farbfamilie einzufuehren (Meeting-Feedback P6-1).
+FARBE_GUT = "#3D7A5F"
+FARBE_OFFEN = "#D79B3D"
+FARBE_KRITISCH = "#B8463E"
+FARBE_MENGE = "#4F8670"
 
 INK = "#52514e"
 MUTED = "#898781"

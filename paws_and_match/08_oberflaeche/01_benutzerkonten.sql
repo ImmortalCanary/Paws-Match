@@ -19,7 +19,7 @@ CREATE TABLE benutzerkonto (
         (rolle = 'admin' AND mitarbeiter_id IS NULL)
         OR (rolle = 'mitarbeiter' AND mitarbeiter_id IS NOT NULL)
     ),
-    CONSTRAINT ck_benutzerkonto_email CHECK (email LIKE '%_@_%._%'),
+    CONSTRAINT ck_benutzerkonto_email CHECK (email REGEXP '^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$'),
     CONSTRAINT ck_benutzerkonto_aktiv CHECK (aktiv IN (0, 1))
 ) ENGINE = InnoDB;
 

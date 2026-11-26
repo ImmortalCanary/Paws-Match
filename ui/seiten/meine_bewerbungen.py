@@ -46,7 +46,11 @@ def zeige() -> None:
                 )
             bausteine.notiz_anzeigen(bewerbung.get("notiz"), eigene_vorsilbe="Ihre Notiz")
 
-            termine = queries.termine(bewerbung_id=bewerbung["id"])
+            try:
+                termine = queries.termine(bewerbung_id=bewerbung["id"])
+            except db.DatenbankFehler as fehler:
+                bausteine.fehler_anzeigen(fehler)
+                termine = []
             if termine:
                 st.markdown("**Termine**")
                 for termin in termine:
@@ -63,6 +67,7 @@ def zeige() -> None:
                     except db.DatenbankFehler as fehler:
                         bausteine.fehler_anzeigen(fehler)
                         return
+                    bausteine.flash_setzen("Bewerbung zurückgezogen.")
                     st.rerun()
 
     st.divider()
@@ -83,5 +88,9 @@ def zeige() -> None:
         with spalte_entfernen:
             if st.button("Entfernen", key=f"merk_weg_{eintrag['tier_id']}",
                         use_container_width=True):
-                queries.merken_entfernen(profil_id, eintrag["tier_id"])
-                st.rerun()
+                try:
+                    queries.merken_entfernen(profil_id, eintrag["tier_id"])
+                except db.DatenbankFehler as fehler:
+                    bausteine.fehler_anzeigen(fehler)
+                else:
+                    st.rerun()

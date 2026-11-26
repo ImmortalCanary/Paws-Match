@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+import re
 from typing import Any, Sequence
 
 import pandas as pd
@@ -10,52 +12,60 @@ import streamlit as st
 import labels
 import queries
 
+# Farbsystem (siehe .streamlit/config.toml fuer die Streamlit-eigenen Theme-Farben):
+# ein warmes Salbeigruen als einzige Akzentfarbe (Primary Actions, hohe Uebereinstimmung,
+# "geeignet"), warme Beige-/Cremetoene als neutrale Flaechen, Bernstein fuer "mittel"-Score,
+# gedaempftes warmes Grau fuer "niedrig"-Score (keine Ampelfarbe - niedrige Uebereinstimmung
+# ist keine Fehlermeldung). Ein zusaetzliches gedaempftes Rot fuer "kritisch"/"ausgeschlossen"
+# gibt es nur in admin_auswertung.py (Diagrammfarbe FARBE_KRITISCH), nicht bei den
+# Score-Badges hier. Bewusst keine weiteren Farbfamilien, um visuelle Ueberladung zu
+# vermeiden (Meeting-Feedback 2026-11-26, P6-1).
 CSS = """
 <style>
 .block-container { padding-top: 2.2rem; max-width: 1150px; }
 
 .pm-held {
-    background: linear-gradient(135deg, #E0603C 0%, #F0A15E 100%);
-    color: #FFFBF5; border-radius: 22px; padding: 2.6rem 2.4rem; margin-bottom: 1.6rem;
+    background: linear-gradient(135deg, #3D7A5F 0%, #5B9680 100%);
+    color: #FAF7F0; border-radius: 22px; padding: 2.6rem 2.4rem; margin-bottom: 1.6rem;
 }
-.pm-held h1 { color: #FFFBF5; font-size: 2.6rem; margin: 0 0 .6rem 0; line-height: 1.15; }
+.pm-held h1 { color: #FAF7F0; font-size: 2.6rem; margin: 0 0 .6rem 0; line-height: 1.15; }
 .pm-held p { font-size: 1.12rem; margin: 0; opacity: .95; }
 
 .pm-karte {
-    background: #FFFFFF; border: 1px solid #F0DFCD; border-radius: 16px;
+    background: #FFFFFF; border: 1px solid #E2DCC8; border-radius: 16px;
     padding: 1.1rem 1.2rem; margin-bottom: .9rem; height: 100%;
 }
 .pm-karte h4 { margin: 0 0 .25rem 0; font-size: 1.18rem; }
-.pm-karte .pm-unterzeile { color: #7A6A5D; font-size: .9rem; margin-bottom: .5rem; }
+.pm-karte .pm-unterzeile { color: #7A7262; font-size: .9rem; margin-bottom: .5rem; }
 .pm-karte p { margin: .25rem 0; font-size: .94rem; }
 
 .pm-schritt {
-    background: #FFFFFF; border: 1px solid #F0DFCD; border-radius: 16px;
+    background: #FFFFFF; border: 1px solid #E2DCC8; border-radius: 16px;
     padding: 1.1rem 1.2rem; height: 100%;
 }
 .pm-schritt .pm-nummer {
     display: inline-flex; align-items: center; justify-content: center;
     width: 2rem; height: 2rem; border-radius: 50%;
-    background: #E0603C; color: #fff; font-weight: 700; margin-bottom: .5rem;
+    background: #3D7A5F; color: #fff; font-weight: 700; margin-bottom: .5rem;
 }
 
 .pm-score {
     display: inline-block; border-radius: 999px; padding: .18rem .8rem;
-    font-weight: 700; font-size: 1rem; background: #E0603C; color: #fff;
+    font-weight: 700; font-size: 1rem; background: #3D7A5F; color: #fff;
 }
-.pm-score-mittel { background: #E09B3C; }
-.pm-score-niedrig { background: #9C8878; }
+.pm-score-mittel { background: #D79B3D; }
+.pm-score-niedrig { background: #9C9484; }
 
 .pm-marke {
     display: inline-block; border-radius: 999px; padding: .1rem .6rem;
-    font-size: .8rem; background: #FDF0E3; color: #7A5A42; margin-right: .3rem;
+    font-size: .8rem; background: #EDE7D8; color: #6B6354; margin-right: .3rem;
 }
 .pm-foto {
     width: 100%; height: 170px; object-fit: cover; border-radius: 12px; margin-bottom: .6rem;
 }
 .pm-foto-leer {
     width: 100%; height: 170px; border-radius: 12px; margin-bottom: .6rem;
-    background: #FDF0E3; display: flex; align-items: center; justify-content: center;
+    background: #EDE7D8; display: flex; align-items: center; justify-content: center;
     font-size: 3rem;
 }
 </style>
@@ -65,6 +75,46 @@ TIERART_SYMBOL = {
     "Hund": "🐕", "Katze": "🐈", "Kaninchen": "🐇", "Meerschweinchen": "🐹",
     "Vogel": "🐦", "Reptil": "🦎", "Fisch": "🐠",
 }
+
+# Bekannte Bildendungen fuer die Plausibilitaetspruefung von foto_url (siehe
+# foto_url_gueltig). Reine UI-Vorsichtsmassnahme gegen gespeicherten XSS - keine Fachregel.
+BILD_ENDUNGEN = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".bmp", ".svg")
+_FOTO_URL_MUSTER = re.compile(r"^https?://[^\s<>\"']+$", re.IGNORECASE)
+
+
+_EMAIL_MUSTER = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+def email_gueltig(email: str | None) -> bool:
+    """Grobe clientseitige Vorabpruefung, passend zum DB-Muster `%_@_%._%`
+    (ck_interessent_email/ck_mitarbeiter_email/ck_benutzerkonto_email).
+
+    Verlangt: nicht leer, genau ein '@', mindestens ein Zeichen davor und danach, mindestens
+    ein '.' nach dem '@' mit mindestens einem Zeichen danach, keine Leerzeichen. Dies ist reine
+    Oberflaechen-Validierung fuer eine freundlichere Fehlermeldung vor dem Speichern - die
+    eigentliche Durchsetzung bleibt der CHECK-Constraint in der Datenbank.
+    """
+    if not email or not email.strip():
+        return False
+    return bool(_EMAIL_MUSTER.match(email.strip()))
+
+
+def foto_url_gueltig(url: str | None) -> bool:
+    """Grobe Plausibilitaetspruefung fuer Bild-Adressen.
+
+    Erlaubt nur http(s)-URLs ohne Leerzeichen/Anfuehrungszeichen/Winkelklammern (die fuer
+    einen Angriff auf das umgebende HTML-Attribut noetig waeren), die auf eine bekannte
+    Bildendung enden (ein Query-String oder Textanker danach ist erlaubt). Ein leerer Wert
+    gilt als gueltig (kein Foto). Dies ist reine Oberflaechen-Validierung, keine Fachregel -
+    es gibt dafuer keinen CHECK-Constraint in der Datenbank.
+    """
+    if not url or not url.strip():
+        return True
+    url = url.strip()
+    if not _FOTO_URL_MUSTER.match(url):
+        return False
+    pfad = url.split("?", 1)[0].split("#", 1)[0]
+    return pfad.lower().endswith(BILD_ENDUNGEN)
 
 
 def stil_laden() -> None:
@@ -94,10 +144,20 @@ def alter_text(zeile: dict[str, Any]) -> str:
 
 
 def tier_kopf(zeile: dict[str, Any]) -> None:
-    """Foto bzw. Platzhalter, Name und Kurzangaben eines Tieres."""
+    """Foto bzw. Platzhalter, Name und Kurzangaben eines Tieres.
+
+    Sicherheitshinweis: foto_url_gueltig() wird hier zusaetzlich zur Pruefung beim Speichern
+    (mitarbeiter_tiere.py) erneut angewendet, und der Wert wird escaped, bevor er in rohes
+    HTML eingebettet wird. So bleibt die Anzeige auch dann sicher, wenn bereits ungueltige
+    Werte in der Datenbank stehen (Altdaten, direkte DB-Aenderung o. Ae.) - gespeicherter XSS
+    ueber foto_url ist damit an zwei Stellen abgedeckt, nicht nur beim Speichern.
+    """
     foto = zeile.get("foto_url")
-    if foto:
-        st.markdown(f'<img class="pm-foto" src="{foto}">', unsafe_allow_html=True)
+    if foto and foto_url_gueltig(foto):
+        st.markdown(
+            f'<img class="pm-foto" src="{html.escape(foto.strip(), quote=True)}">',
+            unsafe_allow_html=True,
+        )
     else:
         st.markdown(
             f'<div class="pm-foto-leer">{symbol(zeile.get("tierart"))}</div>',
@@ -130,14 +190,14 @@ def kriterien_anzeigen(zeilen: Sequence[dict[str, Any]]) -> None:
         spalte_text, spalte_balken, spalte_wert = st.columns([3, 5, 2])
         with spalte_text:
             st.markdown(
-                f"**{name}**  \n<span style='color:#7A6A5D;font-size:.8rem'>"
+                f"**{name}**  \n<span style='color:#7A7262;font-size:.8rem'>"
                 f"{labels.KATEGORIE_ERKLAERUNG.get(zeile['kriterium'], '')}</span>",
                 unsafe_allow_html=True,
             )
         with spalte_balken:
             if passung is None:
                 st.markdown(
-                    "<span style='color:#9C8878'>keine Angaben – zählt mit 0 Punkten</span>",
+                    "<span style='color:#9C9484'>keine Angaben – zählt mit 0 Punkten</span>",
                     unsafe_allow_html=True,
                 )
             else:
@@ -241,6 +301,32 @@ def fehler_anzeigen(fehler: Exception) -> None:
     """Datenbankmeldungen (auch die aus den Prozeduren) verstaendlich ausgeben."""
     nachricht = getattr(fehler, "nachricht", str(fehler))
     st.error(labels.mit_umlauten(nachricht))
+
+
+_FLASH_SCHLUESSEL = "_flash_global"
+
+
+def flash_setzen(text: str) -> None:
+    """Eine Erfolgsmeldung fuer den naechsten Durchlauf merken.
+
+    st.success() unmittelbar vor st.rerun() bzw. vor einem Seitenwechsel (zur_seite,
+    st.switch_page) wuerde nie sichtbar gerendert - der Rerun bricht den aktuellen Durchlauf
+    sofort ab. Dieses Muster stammt urspruenglich aus mitarbeiter_tiere.py (dort seitenlokal);
+    hier seitenuebergreifend, weil z. B. das Profilformular nach dem Speichern auf eine andere
+    Seite wechselt. app.py liest die Meldung einmalig aus (siehe flash_zeigen) und zeigt sie
+    an, bevor die Zielseite aufgebaut wird.
+    """
+    st.session_state[_FLASH_SCHLUESSEL] = text
+
+
+def flash_zeigen() -> None:
+    """Die mit flash_setzen gemerkte Meldung einmalig anzeigen und wieder entfernen.
+
+    Wird von app.py vor jedem Seitenaufbau aufgerufen - nicht von den einzelnen Seiten.
+    """
+    text = st.session_state.pop(_FLASH_SCHLUESSEL, None)
+    if text:
+        st.success(text)
 
 
 def kennzahl(spalte: Any, wert: Any, text: str, nachsatz: str = "") -> None:
