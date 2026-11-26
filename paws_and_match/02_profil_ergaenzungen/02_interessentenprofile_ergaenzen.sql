@@ -9,16 +9,19 @@ CREATE TABLE wohnform (
 
 CREATE TABLE arbeitsmodell (
     id INT PRIMARY KEY,
-    name VARCHAR(60) NOT NULL UNIQUE
+    name VARCHAR(60) NOT NULL UNIQUE,
+    -- anwesenheit = Anteil des Tages, an dem jemand ueblicherweise zu Hause ist (0 bis 1).
+    anwesenheit DECIMAL(3,2) NOT NULL,
+    CONSTRAINT ck_arbeitsmodell_anwesenheit CHECK (anwesenheit BETWEEN 0 AND 1)
 ) ENGINE = InnoDB;
 
 INSERT INTO wohnform (id, name) VALUES
     (1, 'Wohnung'), (2, 'Haus'), (3, 'Reihenhaus'),
     (4, 'Wohngemeinschaft'), (5, 'Sonstige Wohnform');
 
-INSERT INTO arbeitsmodell (id, name) VALUES
-    (1, 'Ueberwiegend vor Ort'), (2, 'Ueberwiegend zu Hause'), (3, 'Hybrid'),
-    (4, 'Wechselnde Arbeitszeiten'), (5, 'Keine Erwerbstaetigkeit');
+INSERT INTO arbeitsmodell (id, name, anwesenheit) VALUES
+    (1, 'Ueberwiegend vor Ort', 0.25), (2, 'Ueberwiegend zu Hause', 1.00), (3, 'Hybrid', 0.75),
+    (4, 'Wechselnde Arbeitszeiten', 0.50), (5, 'Keine Erwerbstaetigkeit', 1.00);
 
 ALTER TABLE interessent
     ADD COLUMN wohnform_id INT NULL,

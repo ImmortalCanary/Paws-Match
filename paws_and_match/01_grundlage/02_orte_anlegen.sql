@@ -77,6 +77,18 @@ BEGIN
     RETURN ORD(SUBSTRING(v_vorher, v_lb + 1, 1));
 END$$
 
+CREATE FUNCTION fn_entfernung_km (p_lat1 DECIMAL(9,6), p_lon1 DECIMAL(9,6),
+                                  p_lat2 DECIMAL(9,6), p_lon2 DECIMAL(9,6))
+RETURNS DECIMAL(8,2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    IF p_lat1 IS NULL OR p_lon1 IS NULL OR p_lat2 IS NULL OR p_lon2 IS NULL THEN
+        RETURN NULL;
+    END IF;
+    RETURN ROUND(ST_Distance_Sphere(POINT(p_lon1, p_lat1), POINT(p_lon2, p_lat2)) / 1000, 2);
+END$$
+
 DELIMITER ;
 
 CREATE TABLE bundesland (
@@ -91,6 +103,7 @@ CREATE TABLE ort (
     bundesland_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     ags CHAR(8) UNIQUE,
+    suchzone_id INT NULL,
     aktiv BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT uq_ort_name UNIQUE (bundesland_id, name),
     CONSTRAINT fk_ort_bundesland FOREIGN KEY (bundesland_id) REFERENCES bundesland(id),
@@ -104,12 +117,25 @@ CREATE TABLE bezirk (
     name VARCHAR(100) NOT NULL,
     schluessel VARCHAR(20),
     suchname VARCHAR(200) NOT NULL DEFAULT '',
+    breitengrad DECIMAL(9,6),
+    laengengrad DECIMAL(9,6),
     CONSTRAINT uq_bezirk_name UNIQUE (ort_id, name),
     CONSTRAINT uq_bezirk_suchname UNIQUE (ort_id, suchname),
     CONSTRAINT uq_bezirk_schluessel UNIQUE (ort_id, schluessel),
     CONSTRAINT fk_bezirk_ort FOREIGN KEY (ort_id) REFERENCES ort(id),
     CONSTRAINT ck_bezirk_suchname CHECK (suchname <> '')
+    ,CONSTRAINT ck_bezirk_breitengrad CHECK (breitengrad BETWEEN -90 AND 90)
+    ,CONSTRAINT ck_bezirk_laengengrad CHECK (laengengrad BETWEEN -180 AND 180)
 ) ENGINE = InnoDB;
+
+CREATE TABLE suchzone (
+    id INT PRIMARY KEY,
+    name VARCHAR(60) NOT NULL UNIQUE,
+    reihenfolge INT NOT NULL UNIQUE
+) ENGINE = InnoDB;
+
+ALTER TABLE ort
+    ADD CONSTRAINT fk_ort_suchzone FOREIGN KEY (suchzone_id) REFERENCES suchzone(id);
 
 -- Weitere Namen fuer einen Bezirk, z. B. Ortsteile oder alte Bezirksnamen.
 CREATE TABLE bezirk_alias (
@@ -147,8 +173,41 @@ INSERT INTO bundesland (id, name, kuerzel) VALUES
     (13, 'Mecklenburg-Vorpommern', 'MV'), (14, 'Sachsen', 'SN'), (15, 'Sachsen-Anhalt', 'ST'),
     (16, 'Thüringen', 'TH');
 
-INSERT INTO ort (id, bundesland_id, name, ags, aktiv) VALUES
-    (1, 11, 'Berlin', '11000000', 1);
+INSERT INTO suchzone (id, name, reihenfolge) VALUES
+    (1, 'Berlin', 1), (2, 'Berliner Umland', 2), (3, 'Weiteres Brandenburg', 3);
+
+INSERT INTO ort (id, bundesland_id, name, ags, suchzone_id, aktiv) VALUES
+    (1, 11, 'Berlin', '11000000', 1, 1),
+    (2, 12, 'Dallgow-Döberitz', NULL, 2, 1),
+    (3, 12, 'Bernau bei Berlin', NULL, 2, 1),
+    (4, 12, 'Halbe', NULL, 2, 1),
+    (5, 12, 'Rüdersdorf bei Berlin', NULL, 2, 1),
+    (6, 12, 'Fürstenwalde/Spree', NULL, 3, 1),
+    (7, 12, 'Luckenwalde', NULL, 3, 1),
+    (8, 12, 'Fürstenberg/Havel', NULL, 3, 1),
+    (9, 12, 'Brandenburg an der Havel', NULL, 3, 1),
+    (10, 12, 'Rathenow', NULL, 3, 1),
+    (11, 12, 'Cottbus', NULL, 3, 1),
+    (12, 12, 'Frankfurt (Oder)', NULL, 3, 1),
+    (13, 12, 'Prenzlau', NULL, 3, 1),
+    (14, 12, 'Perleberg', NULL, 3, 1),
+    (15, 12, 'Groß Pankow (Prignitz)', NULL, 3, 1),
+    (16, 12, 'Kremmen', NULL, 3, 1),
+    (17, 12, 'Bad Belzig', NULL, 3, 1),
+    (18, 12, 'Potsdam', NULL, 2, 1),
+    (19, 12, 'Brieselang', NULL, 2, 1),
+    (20, 12, 'Templin', NULL, 3, 1),
+    (21, 12, 'Neuruppin', NULL, 3, 1),
+    (22, 12, 'Schönborn', NULL, 3, 1),
+    (23, 12, 'Seelow', NULL, 3, 1),
+    (24, 12, 'Lübben (Spreewald)', NULL, 3, 1),
+    (25, 12, 'Wittstock/Dosse', NULL, 3, 1),
+    (26, 12, 'Schipkau', NULL, 3, 1),
+    (27, 12, 'Jüterbog', NULL, 3, 1),
+    (28, 12, 'Neu Zauche', NULL, 3, 1),
+    (29, 12, 'Lieberose', NULL, 3, 1),
+    (30, 12, 'Strausberg', NULL, 2, 1),
+    (31, 12, 'Kleinmachnow', NULL, 2, 1);
 
 -- ID und Schluessel sind die Berliner Bezirksnummern.
 INSERT INTO bezirk (id, ort_id, name, schluessel) VALUES
@@ -163,8 +222,73 @@ INSERT INTO bezirk (id, ort_id, name, schluessel) VALUES
     (9, 1, 'Treptow-Köpenick', '09'),
     (10, 1, 'Marzahn-Hellersdorf', '10'),
     (11, 1, 'Lichtenberg', '11'),
-    (12, 1, 'Reinickendorf', '12');
+    (12, 1, 'Reinickendorf', '12'),
+    (13, 2, 'Dallgow-Döberitz', NULL),
+    (14, 3, 'Bernau bei Berlin', NULL),
+    (15, 4, 'Halbe', NULL),
+    (16, 5, 'Rüdersdorf bei Berlin', NULL),
+    (17, 6, 'Fürstenwalde/Spree', NULL),
+    (18, 7, 'Luckenwalde', NULL),
+    (19, 8, 'Fürstenberg/Havel', NULL),
+    (20, 9, 'Brandenburg an der Havel', NULL),
+    (21, 10, 'Rathenow', NULL),
+    (22, 11, 'Cottbus', NULL),
+    (23, 12, 'Frankfurt (Oder)', NULL),
+    (24, 13, 'Prenzlau', NULL),
+    (25, 14, 'Perleberg', NULL),
+    (26, 15, 'Groß Pankow (Prignitz)', NULL),
+    (27, 16, 'Kremmen', NULL),
+    (28, 17, 'Bad Belzig', NULL),
+    (29, 18, 'Potsdam', NULL),
+    (30, 19, 'Brieselang', NULL),
+    (31, 20, 'Templin', NULL),
+    (32, 21, 'Neuruppin', NULL),
+    (33, 22, 'Schönborn', NULL),
+    (34, 23, 'Seelow', NULL),
+    (35, 24, 'Lübben (Spreewald)', NULL),
+    (36, 25, 'Wittstock/Dosse', NULL),
+    (37, 26, 'Schipkau', NULL),
+    (38, 27, 'Jüterbog', NULL),
+    (39, 28, 'Neu Zauche', NULL),
+    (40, 29, 'Lieberose', NULL),
+    (41, 30, 'Strausberg', NULL),
+    (42, 31, 'Kleinmachnow', NULL);
 
+UPDATE ort o JOIN bezirk b ON b.ort_id = o.id
+SET b.breitengrad = CASE o.id
+    WHEN 3 THEN 52.6790 WHEN 4 THEN 52.1090 WHEN 5 THEN 52.4550
+        WHEN 6 THEN 52.3600 WHEN 7 THEN 52.0900 WHEN 8 THEN 53.1870 WHEN 9 THEN 52.4120
+        WHEN 10 THEN 52.6060 WHEN 11 THEN 51.7570 WHEN 12 THEN 52.3470 WHEN 13 THEN 53.3160
+        WHEN 14 THEN 53.0750 WHEN 15 THEN 53.1670 WHEN 16 THEN 52.7630 WHEN 17 THEN 52.1420
+        WHEN 18 THEN 52.4000 WHEN 19 THEN 52.5830 WHEN 20 THEN 53.1200 WHEN 21 THEN 52.9280
+        WHEN 22 THEN 51.5960 WHEN 23 THEN 52.5330 WHEN 24 THEN 51.9420 WHEN 25 THEN 53.1620
+        WHEN 26 THEN 51.5180 WHEN 27 THEN 51.9940 WHEN 28 THEN 51.9270 WHEN 29 THEN 51.9870
+        WHEN 30 THEN 52.5790 WHEN 31 THEN 52.4070 END,
+    b.laengengrad = CASE o.id
+        WHEN 3 THEN 13.5880 WHEN 4 THEN 13.7020 WHEN 5 THEN 13.7830
+        WHEN 6 THEN 14.0610 WHEN 7 THEN 13.1670 WHEN 8 THEN 13.1460 WHEN 9 THEN 12.5310
+        WHEN 10 THEN 12.3370 WHEN 11 THEN 14.3280 WHEN 12 THEN 14.5500 WHEN 13 THEN 13.8620
+        WHEN 14 THEN 11.8580 WHEN 15 THEN 12.4830 WHEN 16 THEN 13.2050 WHEN 17 THEN 12.5940
+        WHEN 18 THEN 13.0670 WHEN 19 THEN 13.0050 WHEN 20 THEN 13.5000 WHEN 21 THEN 12.8030
+        WHEN 22 THEN 13.4250 WHEN 23 THEN 14.3830 WHEN 24 THEN 13.8890 WHEN 25 THEN 12.4850
+        WHEN 26 THEN 13.8970 WHEN 27 THEN 13.0800 WHEN 28 THEN 14.0150 WHEN 29 THEN 14.3020
+        WHEN 30 THEN 13.8830 WHEN 31 THEN 13.2240 END
+WHERE o.id BETWEEN 2 AND 31;
+
+UPDATE bezirk SET breitengrad = 52.5200, laengengrad = 13.4050 WHERE id = 1;
+UPDATE bezirk SET breitengrad = 52.5150, laengengrad = 13.4540 WHERE id = 2;
+UPDATE bezirk SET breitengrad = 52.5890, laengengrad = 13.4370 WHERE id = 3;
+UPDATE bezirk SET breitengrad = 52.5070, laengengrad = 13.3040 WHERE id = 4;
+UPDATE bezirk SET breitengrad = 52.5350, laengengrad = 13.2000 WHERE id = 5;
+UPDATE bezirk SET breitengrad = 52.4330, laengengrad = 13.2570 WHERE id = 6;
+UPDATE bezirk SET breitengrad = 52.4450, laengengrad = 13.3860 WHERE id = 7;
+UPDATE bezirk SET breitengrad = 52.4810, laengengrad = 13.4350 WHERE id = 8;
+UPDATE bezirk SET breitengrad = 52.4440, laengengrad = 13.5750 WHERE id = 9;
+UPDATE bezirk SET breitengrad = 52.5360, laengengrad = 13.5630 WHERE id = 10;
+UPDATE bezirk SET breitengrad = 52.5756, laengengrad = 13.5451 WHERE id = 11;
+UPDATE bezirk SET breitengrad = 52.5890, laengengrad = 13.2840 WHERE id = 12;
+
+-- OSM/Nominatim centroids are approximate; municipality queries are listed in the README source register.
 -- Berliner Ortsteile und die alten Bezirksnamen Hohenschoenhausen und Treptow.
 INSERT INTO bezirk_alias (bezirk_id, name) VALUES
     (1, 'Moabit'), (1, 'Hansaviertel'), (1, 'Tiergarten'), (1, 'Wedding'), (1, 'Gesundbrunnen'),
@@ -192,6 +316,10 @@ INSERT INTO bezirk_alias (bezirk_id, name) VALUES
     (12, 'Tegel'), (12, 'Konradshöhe'), (12, 'Heiligensee'), (12, 'Frohnau'), (12, 'Hermsdorf'),
     (12, 'Waidmannslust'), (12, 'Lübars'), (12, 'Wittenau'), (12, 'Märkisches Viertel'),
     (12, 'Borsigwalde');
+
+INSERT INTO bezirk_alias (bezirk_id, name) VALUES
+    (13, 'Dallgow'), (14, 'Ladeburg'), (16, 'Ruedersdorf'), (19, 'Tornow'),
+    (22, 'Chosebuz'), (23, 'Frankfurt'), (26, 'Strigleben'), (27, 'Hohenbruch'), (28, 'Verlorenwasser');
 
 -- Alle Schreibweisen, unter denen ein Bezirk gefunden wird, auch mit Ort davor oder dahinter ('Berlin-Mitte').
 CREATE OR REPLACE VIEW bezirk_suchbegriff AS
@@ -234,6 +362,28 @@ BEGIN
     DECLARE v_treffer INT DEFAULT NULL;
     DECLARE v_abstand INT DEFAULT NULL;
     DECLARE v_grenze INT;
+    DECLARE v_ot_text VARCHAR(200);
+
+    -- Amtliches Muster "<Ort> OT <Ortsteil>" (z. B. "Bernau OT Ladeburg"): der Teil nach "OT"
+    -- ist meist der praezisere, bereits als Alias hinterlegte Suchbegriff - erst ihn allein
+    -- exakt aufloesen versuchen, bevor der normale Pfad den gesamten Text als ein
+    -- zusammenhaengendes Wort behandelt (dort wuerde "OT" nur zusaetzlichen Abstand erzeugen).
+    -- Findet sich kein eindeutiger Treffer, faellt die Funktion auf den unveraenderten
+    -- Normalpfad mit dem kompletten Text zurueck.
+    IF REGEXP_LIKE(p_text, '\\bOT\\b', 'i') THEN
+        SET v_ot_text = fn_text_normalisieren(
+            REGEXP_REPLACE(p_text, '^.*\\bOT\\b', '', 1, 1, 'i'));
+        IF v_ot_text IS NOT NULL THEN
+            SELECT COUNT(DISTINCT bezirk_id), MIN(bezirk_id) INTO v_anzahl, v_treffer
+            FROM bezirk_suchbegriff
+            WHERE suchbegriff = v_ot_text AND (p_ort_id IS NULL OR ort_id = p_ort_id);
+            IF v_anzahl = 1 THEN
+                RETURN v_treffer;
+            END IF;
+            SET v_anzahl = 0;
+            SET v_treffer = NULL;
+        END IF;
+    END IF;
 
     SET v_text = fn_text_normalisieren(p_text);
     IF v_text IS NULL THEN

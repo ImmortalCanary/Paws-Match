@@ -4,10 +4,11 @@ SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
 
 SET @interessent_id = 17;
+SET @mindestscore = (SELECT wert FROM matching_einstellung WHERE schluessel = 'mindestscore');
 
 SELECT
     s.tier_id, s.interessent_id, s.tiername, s.pseudonym, s.tierstatus,
-    s.eignung, s.match_prozent, s.datenabdeckung_prozent,
+    s.eignung, s.match_prozent, s.datenabdeckung_prozent, s.entfernung_km,
     CASE
         WHEN v.tier_id IS NOT NULL THEN 'Als Vorschlag anzeigen'
         WHEN s.eignung = 'ausgeschlossen' THEN 'Kein Vorschlag: Ausschlusskriterium'
@@ -15,7 +16,7 @@ SELECT
         WHEN s.tier_verfuegbar = 0 THEN 'Kein Vorschlag: Tier nicht verfuegbar'
         WHEN s.interessent_aktiv = 0 THEN 'Kein Vorschlag: Interessentenprofil inaktiv'
         WHEN s.gewichtung_vollstaendig = 0 THEN 'Kein Vorschlag: Gewichtung unvollstaendig'
-        ELSE 'Kein Vorschlag: Mindestscore nicht erreicht'
+        ELSE CONCAT('Kein Vorschlag: Mindestscore ', @mindestscore, ' nicht erreicht')
     END AS vorschlagsstatus,
     s.ausschlussgruende, s.offene_pruefungen
 FROM matching_score s
@@ -25,4 +26,5 @@ WHERE s.interessent_id = @interessent_id
 ORDER BY
     CASE WHEN v.tier_id IS NOT NULL THEN 0 ELSE 1 END,
     s.match_prozent DESC,
+    s.datenabdeckung_prozent DESC,
     s.tier_id;
