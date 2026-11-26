@@ -11,6 +11,7 @@ CREATE PROCEDURE sp_interessent_loeschen (IN p_id INT, OUT p_ergebnis VARCHAR(20
 MODIFIES SQL DATA
 BEGIN
     DECLARE v_anzahl INT DEFAULT 0;
+    DECLARE v_betroffene_tiere INT DEFAULT 0;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -33,6 +34,29 @@ BEGIN
     END IF;
 
     IF EXISTS (SELECT 1 FROM bewerbung WHERE interessent_id = p_id) THEN
+        -- Tiere freigeben, die durch eine offene/in-Pruefung-Bewerbung dieses Interessenten
+        -- reserviert sind - sonst bliebe das Tier nach dem Zurueckziehen faelschlich
+        -- 'reserviert' mit totem Bewerbung-Verweis stehen (stale Reservierung).
+        -- Sperrreihenfolge wie in sp_reservieren/sp_reservierung_aufheben: erst Tier, dann Bewerbung.
+        SELECT COUNT(*) INTO v_betroffene_tiere
+        FROM tier
+        WHERE reserviert_fuer_bewerbung_id IN (
+            SELECT id FROM bewerbung WHERE interessent_id = p_id AND status IN ('offen', 'in_pruefung')
+        )
+        FOR UPDATE;
+
+        -- Bypass fuer den neuen standortpruefenden tier-Trigger (BEFORE INSERT/UPDATE) des DB
+        -- Specialists: diese Prozedur hat keinen Standortbezug/-check (Interessenten-Loeschen
+        -- ist standortunabhaengig), daher hier bewusst immer der Bypass, nicht nur bedingt.
+        -- Direkt danach zurueckgesetzt, damit die Session nicht dauerhaft im Admin-Bypass bleibt.
+        SET @pm_ist_admin = 1;
+        UPDATE tier
+        SET status = 'verfuegbar', reserviert_fuer_bewerbung_id = NULL
+        WHERE reserviert_fuer_bewerbung_id IN (
+            SELECT id FROM bewerbung WHERE interessent_id = p_id AND status IN ('offen', 'in_pruefung')
+        );
+        SET @pm_ist_admin = NULL;
+
         UPDATE bewerbung
         SET status = IF(status IN ('offen', 'in_pruefung'), 'zurueckgezogen', status),
             notiz = NULL
@@ -51,6 +75,7 @@ BEGIN
             pseudonym = CONCAT('Anonymisiert ', p_id),
             email = CONCAT('anonymisiert-', p_id, '@paws-match.invalid'),
             bezirk_id = NULL,
+            max_suchzone_id = NULL, max_entfernung_km = NULL,
             wohnflaeche = NULL, garten = NULL, etage = NULL, aufzug = NULL,
             kinder = NULL, hund_vorhanden = NULL, katze_vorhanden = NULL,
             zeit_stunden = NULL, allein_stunden = NULL, erfahrung = NULL,
