@@ -56,17 +56,62 @@ SELECT 'Levenshtein-Distanzen', '3 / 3 / 0 / 2',
 
 -- 2. Stammdaten und Auswahlliste
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
-SELECT 'Stammdaten: 16 Bundeslaender, 1 aktiver Ort, 12 Bezirke', '16 / 1 / 12',
+SELECT 'Stammdaten: 16 Bundeslaender, 31 aktive Orte, 42 Bezirke', '16 / 31 / 42',
        CONCAT_WS(' / ', (SELECT COUNT(*) FROM bundesland), (SELECT COUNT(*) FROM ort WHERE aktiv = 1),
                  (SELECT COUNT(*) FROM bezirk)),
-       (SELECT COUNT(*) FROM bundesland) = 16 AND (SELECT COUNT(*) FROM ort WHERE aktiv = 1) = 1
-       AND (SELECT COUNT(*) FROM bezirk) = 12;
+    (SELECT COUNT(*) FROM bundesland) = 16 AND (SELECT COUNT(*) FROM ort WHERE aktiv = 1) = 31
+    AND (SELECT COUNT(*) FROM bezirk) = 42;
 
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
-SELECT 'Auswahlliste: 12 Berliner Bezirke', '12 / Berlin',
-       CONCAT(COUNT(*), ' / ', GROUP_CONCAT(DISTINCT ort)),
-       COUNT(*) = 12 AND COUNT(DISTINCT ort) = 1 AND MIN(ort) = 'Berlin'
+SELECT 'Auswahlliste: Bezirke aus Berlin und Brandenburg', '42 / 31',
+       CONCAT(COUNT(*), ' / ', COUNT(DISTINCT ort_id)),
+    COUNT(*) = 42 AND COUNT(DISTINCT ort_id) = 31
 FROM bezirk_auswahl;
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Zonen und belegte Bezirkskoordinaten sind vorhanden', '3 Zonen / mindestens 14 Koordinaten',
+       CONCAT((SELECT COUNT(*) FROM suchzone), ' Zonen / ',
+              (SELECT COUNT(*) FROM bezirk WHERE breitengrad IS NOT NULL AND laengengrad IS NOT NULL), ' Koordinaten'),
+       (SELECT COUNT(*) FROM suchzone) = 3
+    AND (SELECT COUNT(*) FROM bezirk WHERE breitengrad IS NOT NULL AND laengengrad IS NOT NULL) >= 14;
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Entfernung Tierheim Berlin bis Mitte ist plausibel', 'unter 20 km',
+       CONCAT(fn_entfernung_km(52.5200, 13.4050, 52.575587, 13.545059), ' km'),
+       fn_entfernung_km(52.5200, 13.4050, 52.575587, 13.545059) BETWEEN 0.5 AND 20;
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Entfernung mit fehlender Koordinate bleibt NULL', 'NULL',
+       COALESCE(CONCAT(fn_entfernung_km(NULL, 13.4, 52.5, 13.5)), 'NULL'),
+       fn_entfernung_km(NULL, 13.4, 52.5, 13.5) IS NULL;
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Stammdaten besitzen Herkunft und Prüfdatum', '33 Standorte mit Quelle und Datum',
+       CONCAT(COUNT(*), ' Standorte mit Quelle und Datum'),
+    COUNT(*) = 33 AND SUM(quelle_url IS NOT NULL AND geprueft_am IS NOT NULL
+                 AND datenstatus = 'zu_pruefen') = 33
+FROM standort;
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Alle Standorte verweisen auf eine Organisation', '0 ohne Organisation',
+    CONCAT(COUNT(*), ' ohne Organisation'), COUNT(*) = 0
+FROM standort s LEFT JOIN tierheim h ON h.id = s.tierheim_id WHERE h.id IS NULL;
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Organisationen und Standorte: Seedbestand', '39 / 33',
+       CONCAT((SELECT COUNT(*) FROM tierheim), ' / ', COUNT(*)),
+    (SELECT COUNT(*) FROM tierheim) = 39 AND COUNT(*) = 33
+FROM standort;
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Standort-Quellen enthalten keine leeren Eintraege', '0 ohne Quelle',
+       CONCAT(COUNT(*), ' ohne Quelle'), COUNT(*) = 0
+FROM standort WHERE quelle_url IS NULL OR datenstatus NOT IN ('zu_pruefen', 'verifiziert');
+
+INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
+SELECT 'Berliner Vermittlungsvereine ohne private Adresse', '0 mit Strasse oder Bezirk fuer Pflegeverein',
+       CONCAT(COUNT(*)), COUNT(*) = 0
+FROM standort WHERE art = 'pflegeverein' AND (strasse IS NOT NULL OR bezirk_id IS NOT NULL);
 
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
 SELECT 'Jeder Bezirk und jeder Ortsteil wird eindeutig erkannt', '0 Abweichungen',
@@ -112,6 +157,8 @@ FROM (
     UNION ALL SELECT 'Weißensee', 'Pankow'
     UNION ALL SELECT 'Weissensee', 'Pankow'
     UNION ALL SELECT 'Märkisches Viertel', 'Reinickendorf'
+    UNION ALL SELECT 'Frankfurt (Oder)', 'Frankfurt (Oder)'
+    UNION ALL SELECT 'Bernau OT Ladeburg', 'Bernau bei Berlin'
     UNION ALL SELECT 'Hamburg', NULL
     UNION ALL SELECT 'München', NULL
     UNION ALL SELECT 'Berlin', NULL
@@ -127,10 +174,10 @@ SELECT 'Einschraenkung auf Ort', '1 / NULL',
 
 -- 4. Demodaten: verschiedene Schreibweisen landen im richtigen Bezirk
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
-SELECT 'Demodaten: alle Standorte und Profile haben einen Bezirk', '0',
-       CONCAT((SELECT COUNT(*) FROM standort WHERE bezirk_id IS NULL)
+SELECT 'Physische Tierstandorte und Profile haben einen Bezirk', '0',
+    CONCAT((SELECT COUNT(*) FROM standort WHERE art NOT IN ('pflegeverein', 'pflegestellen') AND bezirk_id IS NULL)
               + (SELECT COUNT(*) FROM interessent WHERE bezirk_id IS NULL)),
-       (SELECT COUNT(*) FROM standort WHERE bezirk_id IS NULL)
+    (SELECT COUNT(*) FROM standort WHERE art NOT IN ('pflegeverein', 'pflegestellen') AND bezirk_id IS NULL)
        + (SELECT COUNT(*) FROM interessent WHERE bezirk_id IS NULL) = 0;
 
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
@@ -140,9 +187,8 @@ SELECT 'Demodaten: Profile 7, 9, 13, 16, 19 zugeordnet', 'Pankow, Neukölln, Spa
 FROM interessent i JOIN bezirk b ON b.id = i.bezirk_id
 WHERE i.id IN (7, 9, 13, 16, 19);
 
--- 5. Orte freischalten und weitere Orte ergaenzen (Beispiel Hamburg)
 START TRANSACTION;
-UPDATE ort SET aktiv = 0 WHERE id = 1;
+UPDATE ort SET aktiv = 0;
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
 SELECT 'Nicht freigeschalteter Ort: keine Auswahl, keine Erkennung', '0 / NULL',
        CONCAT((SELECT COUNT(*) FROM bezirk_auswahl), ' / ', COALESCE(fn_bezirk_id('Mitte', NULL), 'NULL')),
@@ -150,25 +196,25 @@ SELECT 'Nicht freigeschalteter Ort: keine Auswahl, keine Erkennung', '0 / NULL',
 ROLLBACK;
 
 START TRANSACTION;
-INSERT INTO ort (id, bundesland_id, name, ags, aktiv) VALUES (2, 2, 'Hamburg', '02000000', 1);
-INSERT INTO bezirk (id, ort_id, name, schluessel) VALUES (101, 2, 'Hamburg-Mitte', '01'), (102, 2, 'Altona', '02');
-INSERT INTO bezirk_alias (bezirk_id, name) VALUES (101, 'Mitte');
+INSERT INTO ort (id, bundesland_id, name, ags, aktiv) VALUES (99, 2, 'Hamburg', '02000000', 1);
+INSERT INTO bezirk (id, ort_id, name, schluessel) VALUES (201, 99, 'Hamburg-Mitte', '01'), (202, 99, 'Altona', '02');
+INSERT INTO bezirk_alias (bezirk_id, name) VALUES (201, 'Mitte');
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
-SELECT 'Erweiterung Hamburg: Altona / Hamburg-Altona / Hamburg Mitte', '102 / 102 / 101',
-       CONCAT_WS(' / ', COALESCE(fn_bezirk_id('Altona', NULL), 'NULL'),
+SELECT 'Erweiterung Hamburg: Altona / Hamburg-Altona / Hamburg Mitte', '202 / 202 / 201',
+    CONCAT_WS(' / ', COALESCE(fn_bezirk_id('Altona', NULL), 'NULL'),
                  COALESCE(fn_bezirk_id('Hamburg-Altona', NULL), 'NULL'),
                  COALESCE(fn_bezirk_id('Hamburg Mitte', NULL), 'NULL')),
-       fn_bezirk_id('Altona', NULL) = 102 AND fn_bezirk_id('Hamburg-Altona', NULL) = 102
-       AND fn_bezirk_id('Hamburg Mitte', NULL) = 101;
+    fn_bezirk_id('Altona', NULL) = 202 AND fn_bezirk_id('Hamburg-Altona', NULL) = 202
+    AND fn_bezirk_id('Hamburg Mitte', NULL) = 201;
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
-SELECT 'Mehrdeutig "Mitte": ohne Ort NULL, mit Ort eindeutig', 'NULL / 1 / 101',
+SELECT 'Mehrdeutig "Mitte": ohne Ort NULL, mit Ort eindeutig', 'NULL / 1 / 201',
        CONCAT_WS(' / ', COALESCE(fn_bezirk_id('Mitte', NULL), 'NULL'),
-                 COALESCE(fn_bezirk_id('Mitte', 1), 'NULL'), COALESCE(fn_bezirk_id('Mitte', 2), 'NULL')),
-       fn_bezirk_id('Mitte', NULL) IS NULL AND fn_bezirk_id('Mitte', 1) = 1 AND fn_bezirk_id('Mitte', 2) = 101;
+           COALESCE(fn_bezirk_id('Mitte', 1), 'NULL'), COALESCE(fn_bezirk_id('Mitte', 99), 'NULL')),
+    fn_bezirk_id('Mitte', NULL) IS NULL AND fn_bezirk_id('Mitte', 1) = 1 AND fn_bezirk_id('Mitte', 99) = 201;
 INSERT INTO test_ergebnis (testfall, erwartet, ist, bestanden)
-SELECT 'Auswahlliste nach Erweiterung', '14 Bezirke / 2 Orte',
+SELECT 'Auswahlliste nach Erweiterung um Hamburg', '44 Bezirke / 32 Orte',
        CONCAT(COUNT(*), ' Bezirke / ', COUNT(DISTINCT ort_id), ' Orte'),
-       COUNT(*) = 14 AND COUNT(DISTINCT ort_id) = 2
+    COUNT(*) = 44 AND COUNT(DISTINCT ort_id) = 32
 FROM bezirk_auswahl;
 ROLLBACK;
 
@@ -178,10 +224,14 @@ CALL test_erwarte_fehler('Doppelter Bezirk in anderer Schreibweise',
     'INSERT INTO bezirk (ort_id, name) VALUES (1, ''Neukoelln'')', 'uq_bezirk_suchname');
 CALL test_erwarte_fehler('Aktives Profil ohne Bezirk',
     'UPDATE interessent SET bezirk_id = NULL WHERE id = 1', 'ck_interessent_bezirk');
+CALL test_erwarte_fehler('Ungueltige Suchzone',
+    'UPDATE interessent SET max_suchzone_id = 99 WHERE id = 1', 'foreign key constraint fails');
 CALL test_erwarte_fehler('Standort mit unbekanntem Bezirk',
     'UPDATE standort SET bezirk_id = 999 WHERE id = 1', 'foreign key constraint fails');
+CALL test_erwarte_fehler('Unvollstaendiges Koordinatenpaar',
+    'UPDATE standort SET breitengrad = 52.5, laengengrad = NULL WHERE id = 1', 'ck_standort_koordinatenpaar');
 CALL test_erwarte_fehler('Ungueltiger Gemeindeschluessel',
-    'INSERT INTO ort (bundesland_id, name, ags) VALUES (12, ''Potsdam'', ''ABC'')', 'ck_ort_ags');
+    'INSERT INTO ort (bundesland_id, name, ags) VALUES (12, ''Testort'', ''ABC'')', 'ck_ort_ags');
 CALL test_erwarte_fehler('Import mit unbekanntem Bezirk',
     'SELECT fn_bezirk_id_pflicht(''Atlantis'') INTO @x', 'Bezirk nicht erkannt');
 ROLLBACK;
