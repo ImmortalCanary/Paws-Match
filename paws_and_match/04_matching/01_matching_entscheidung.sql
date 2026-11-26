@@ -7,19 +7,18 @@ CREATE OR REPLACE VIEW matching_entscheidung AS
 WITH profil AS (
     SELECT
         t.*, i.id AS interessent_id, i.pseudonym, i.aktiv AS interessent_aktiv,
+       i.max_suchzone_id, i.max_entfernung_km, o.suchzone_id AS standort_suchzone,
+       fn_entfernung_km(b.breitengrad, b.laengengrad,
+                      COALESCE(s.breitengrad, sb.breitengrad), COALESCE(s.laengengrad, sb.laengengrad)) AS entfernung_km,
         i.garten, i.etage, i.aufzug, i.kinder, i.hund_vorhanden, i.katze_vorhanden,
         i.wohnflaeche, i.zeit_stunden, i.allein_stunden, i.budget, i.medizin_bereit,
-        i.kleintiere_vorhanden, i.balkon, i.balkon_gesichert, i.training_bereit,
+        i.kleintiere_vorhanden,
         i.tierarzt_bereit, e.erfahrungslevel, pf.rang AS pflege_bedarf,
         ipf.rang AS pflege_bereitschaft,
         EXISTS(SELECT 1 FROM interessent_tierart it
                WHERE it.interessent_id = i.id) AS tierwunsch_erfasst,
         EXISTS(SELECT 1 FROM interessent_tierart it
                WHERE it.interessent_id = i.id AND it.tierart_id = t.tierart_id) AS tierart_passt,
-        EXISTS(SELECT 1 FROM tier_beduerfnis tb
-               WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 2) AS balkon_bedarf,
-        EXISTS(SELECT 1 FROM tier_beduerfnis tb
-               WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 4) AS training_bedarf,
         CASE WHEN t.medizin_noetig = 1
                   OR EXISTS(SELECT 1 FROM tier_beduerfnis tb
                             WHERE tb.tier_id = t.id AND tb.beduerfnis_id = 1) THEN 1
@@ -34,8 +33,12 @@ WITH profil AS (
                  AND NOT EXISTS(SELECT 1 FROM interessent_beduerfnis ib
                                 WHERE ib.interessent_id = i.id
                                   AND ib.beduerfnis_id = tb.beduerfnis_id)) AS bedarf_offen
-    FROM tier t
+       FROM tier t
     CROSS JOIN interessent i
+       JOIN standort s ON s.id = t.standort_id
+       JOIN ort o ON o.id = s.ort_id
+       LEFT JOIN bezirk b ON b.id = i.bezirk_id
+       LEFT JOIN bezirk sb ON sb.id = s.bezirk_id
     LEFT JOIN interessent_tiererfahrung e ON e.interessent_id = i.id AND e.tierart_id = t.tierart_id
     LEFT JOIN pflegeaufwand pf ON pf.id = t.pflegeaufwand_id
     LEFT JOIN pflegeaufwand ipf ON ipf.id = i.max_pflegeaufwand_id
@@ -47,6 +50,7 @@ SELECT
     p.pseudonym,
     p.status AS tierstatus,
     (p.status = 'verfuegbar') AS tier_verfuegbar,
+       p.entfernung_km,
     p.interessent_aktiv,
     CASE WHEN MAX(r.ergebnis) = 2 THEN 'ausgeschlossen'
          WHEN MAX(r.ergebnis) = 1 THEN 'pruefung_offen'
@@ -69,11 +73,14 @@ JOIN JSON_TABLE(JSON_ARRAY(
     JSON_ARRAY('Monatliches Budget', CASE WHEN monatskosten = 0 THEN 0 WHEN budget < monatskosten THEN 2 WHEN budget IS NULL OR monatskosten IS NULL THEN 1 ELSE 0 END),
     JSON_ARRAY('Medizinische Versorgung', CASE WHEN medizin_bedarf = 0 OR medizin_bereit = 1 THEN 0 WHEN medizin_bedarf = 1 AND medizin_bereit = 0 THEN 2 ELSE 1 END),
     JSON_ARRAY('Tierarztbereitschaft', CASE WHEN medizin_bedarf = 0 OR tierarzt_bereit = 1 THEN 0 WHEN medizin_bedarf = 1 AND tierarzt_bereit = 0 THEN 2 ELSE 1 END),
-    JSON_ARRAY('Notwendiges Training', CASE WHEN training_bedarf = 0 OR training_bereit = 1 THEN 0 WHEN training_bereit = 0 THEN 2 ELSE 1 END),
     JSON_ARRAY('Pflegeaufwand', CASE WHEN pflege_bereitschaft < pflege_bedarf THEN 2 WHEN pflege_bereitschaft IS NULL OR pflege_bedarf IS NULL THEN 1 ELSE 0 END),
-    JSON_ARRAY('Erforderlicher gesicherter Balkon', CASE WHEN balkon_bedarf = 0 THEN 0 WHEN balkon = 0 OR balkon_gesichert = 0 THEN 2 WHEN balkon = 1 AND balkon_gesichert = 1 THEN 0 ELSE 1 END),
     JSON_ARRAY('Verbindliches Beduerfnis ausdruecklich abgelehnt', IF(bedarf_abgelehnt, 2, 0)),
     JSON_ARRAY('Bestaetigung verbindlicher Beduerfnisse', IF(bedarf_offen, 1, 0))
+       ,JSON_ARRAY('Suchzone', CASE WHEN max_suchzone_id IS NULL OR standort_suchzone IS NULL THEN 0
+                                                         WHEN standort_suchzone <= max_suchzone_id THEN 0 ELSE 2 END)
+       ,JSON_ARRAY('Entfernung', CASE WHEN max_entfernung_km IS NULL THEN 0
+                                                           WHEN entfernung_km IS NULL THEN 1
+                                                           WHEN entfernung_km <= max_entfernung_km THEN 0 ELSE 2 END)
 ), '$[*]' COLUMNS (
     position FOR ORDINALITY,
     kriterium VARCHAR(100) PATH '$[0]',

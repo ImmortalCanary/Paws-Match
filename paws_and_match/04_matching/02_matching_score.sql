@@ -3,17 +3,36 @@ USE paws_match;
 SET NAMES utf8mb4;
 SET SESSION group_concat_max_len = 65535;
 
+-- Katalog der Score-Kategorien. Dadurch steht die Anzahl nicht mehr als Zahl im Code.
+CREATE TABLE matching_kategorie (
+    name VARCHAR(30) PRIMARY KEY,
+    beschreibung VARCHAR(200) NOT NULL
+) ENGINE = InnoDB;
+
+INSERT INTO matching_kategorie (name, beschreibung) VALUES
+    ('Tierart', 'Tierartwunsch, Wunschgroesse und Wunschalter'),
+    ('Aktivitaet', 'Abstand zwischen den Aktivitaetsstufen'),
+    ('Zeit', 'Reserve bei Betreuungszeit und Alleinzeit'),
+    ('Wohnsituation', 'Reserve bei der Wohnflaeche'),
+    ('Erfahrung', 'Erfahrung mit der Tierart ueber dem Minimum'),
+    ('Vertraeglichkeit', 'Kinder, Hunde, Katzen und Kleintiere'),
+    ('Gesundheit', 'Belastende Gesundheitsmerkmale gegen die Bereitschaft zur Versorgung'),
+    ('Alltagsrhythmus', 'Alleinzeit des Tieres gegen die Anwesenheit laut Arbeitsmodell'),
+    ('Budget', 'Reserve beim Budget'),
+    ('Charakter', 'Anteil der gewuenschten Charakterzuege'),
+    ('Naehe', 'Wunschstandort oder gleicher Bezirk');
+
 CREATE TABLE matching_gewichtung (
-    kriterium ENUM('Tierart', 'Aktivitaet', 'Zeit', 'Wohnsituation', 'Erfahrung',
-                   'Vertraeglichkeit', 'Budget', 'Charakter', 'Naehe') PRIMARY KEY,
+    kriterium VARCHAR(30) PRIMARY KEY,
     gewicht DECIMAL(6,2) NOT NULL,
+    CONSTRAINT fk_matching_gewichtung_kategorie FOREIGN KEY (kriterium) REFERENCES matching_kategorie(name),
     CONSTRAINT ck_matching_gewicht CHECK (gewicht > 0)
 ) ENGINE = InnoDB;
 
 INSERT INTO matching_gewichtung (kriterium, gewicht) VALUES
-    ('Tierart', 20), ('Aktivitaet', 15), ('Zeit', 15), ('Wohnsituation', 15),
-    ('Erfahrung', 10), ('Vertraeglichkeit', 10), ('Budget', 5),
-    ('Charakter', 5), ('Naehe', 5);
+    ('Tierart', 20), ('Aktivitaet', 13), ('Zeit', 13), ('Wohnsituation', 13),
+    ('Erfahrung', 9), ('Vertraeglichkeit', 9), ('Gesundheit', 7),
+    ('Alltagsrhythmus', 5), ('Budget', 4), ('Charakter', 4), ('Naehe', 3);
 
 -- Jede Kategorie bekommt einen Wert zwischen 0 und 1, oder NULL wenn Daten fehlen.
 -- Mindestanforderung genau erfuellt = 0,5, doppelt so viel wie noetig = 1,0.
@@ -37,6 +56,12 @@ WITH basis AS (
         t.kinder_ok, i.kinder, t.hund_ok, i.hund_vorhanden,
         t.katze_ok, i.katze_vorhanden, t.kleintiere_ok, i.kleintiere_vorhanden,
         i.budget, t.monatskosten,
+        -- Nur bestaetigte und belastende Merkmale bedeuten echten Mehraufwand.
+        (SELECT COUNT(*) FROM tier_gesundheit tgs
+         JOIN gesundheitsmerkmal gm ON gm.id = tgs.gesundheitsmerkmal_id
+         WHERE tgs.tier_id = t.id AND tgs.bestaetigt = 1 AND gm.belastend = 1) AS gesundheitslasten,
+        i.medizin_bereit, i.tierarzt_bereit,
+        am.anwesenheit,
         (SELECT COUNT(*) FROM interessent_charakter ic WHERE ic.interessent_id = i.id) AS charakter_wuensche,
         (SELECT COUNT(*) FROM tier_charakter tc WHERE tc.tier_id = t.id) AS tier_charaktere,
         (SELECT COUNT(*) FROM interessent_charakter ic
@@ -46,11 +71,17 @@ WITH basis AS (
                WHERE isp.interessent_id = i.id AND isp.standort_id = t.standort_id) AS wunschstandort,
         EXISTS(SELECT 1 FROM interessent_standort isp WHERE isp.interessent_id = i.id) AS standortwunsch_erfasst,
         i.bezirk_id AS interessent_bezirk,
-        s.bezirk_id AS standort_bezirk
+        s.bezirk_id AS standort_bezirk,
+     i.max_entfernung_km,
+     fn_entfernung_km(ib.breitengrad, ib.laengengrad,
+                 COALESCE(s.breitengrad, sb.breitengrad), COALESCE(s.laengengrad, sb.laengengrad)) AS entfernung_km
     FROM tier t
     CROSS JOIN interessent i
     JOIN standort s ON s.id = t.standort_id
+    LEFT JOIN bezirk ib ON ib.id = i.bezirk_id
+    LEFT JOIN bezirk sb ON sb.id = s.bezirk_id
     LEFT JOIN tier_groesse tg ON tg.id = t.groesse_id
+    LEFT JOIN arbeitsmodell am ON am.id = i.arbeitsmodell_id
     LEFT JOIN interessent_tiererfahrung e
         ON e.interessent_id = i.id AND e.tierart_id = t.tierart_id
 ), teilwerte AS (
@@ -107,12 +138,19 @@ WITH basis AS (
         (COALESCE(kinder_wert, 0) + COALESCE(hund_wert, 0) + COALESCE(katze_wert, 0) + COALESCE(kleintier_wert, 0))
             / NULLIF((kinder_wert IS NOT NULL) + (hund_wert IS NOT NULL)
                      + (katze_wert IS NOT NULL) + (kleintier_wert IS NOT NULL), 0) AS vertraeglichkeit,
+        -- Ohne belastende Merkmale volle Punktzahl, sonst zaehlt die Bereitschaft des Interessenten.
+        CASE WHEN gesundheitslasten = 0 THEN 1
+             WHEN medizin_bereit IS NULL OR tierarzt_bereit IS NULL THEN NULL
+             ELSE (medizin_bereit + tierarzt_bereit) / 2 END AS gesundheit,
+        -- Je kuerzer das Tier allein bleiben darf, desto wichtiger ist die Anwesenheit zu Hause.
+        CASE WHEN anwesenheit IS NULL OR max_allein IS NULL THEN NULL
+             ELSE 1 - GREATEST(0, 1 - max_allein / 8) * (1 - anwesenheit) END AS alltagsrhythmus,
         budget_passung AS budget,
         CASE WHEN charakter_wuensche = 0 OR tier_charaktere = 0 THEN NULL
              ELSE charakter_treffer / charakter_wuensche END AS charakter,
         CASE WHEN wunschstandort = 1 THEN 1
-             WHEN interessent_bezirk IS NOT NULL AND standort_bezirk IS NOT NULL
-                 THEN IF(interessent_bezirk = standort_bezirk, 1, 0)
+             WHEN entfernung_km IS NOT NULL
+                 THEN GREATEST(0, 1 - entfernung_km / COALESCE(max_entfernung_km, 50))
              WHEN standortwunsch_erfasst = 1 THEN 0
              ELSE NULL END AS naehe
     FROM teilwerte
@@ -123,6 +161,8 @@ UNION ALL SELECT tier_id, interessent_id, 'Zeit', zeit FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Wohnsituation', wohnsituation FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Erfahrung', erfahrung FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Vertraeglichkeit', vertraeglichkeit FROM kategorien
+UNION ALL SELECT tier_id, interessent_id, 'Gesundheit', gesundheit FROM kategorien
+UNION ALL SELECT tier_id, interessent_id, 'Alltagsrhythmus', alltagsrhythmus FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Budget', budget FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Charakter', charakter FROM kategorien
 UNION ALL SELECT tier_id, interessent_id, 'Naehe', naehe FROM kategorien;
@@ -130,7 +170,8 @@ UNION ALL SELECT tier_id, interessent_id, 'Naehe', naehe FROM kategorien;
 -- Fehlende Kategorien geben 0 Punkte. Wie viel vom Gewicht echte Daten hat, steht in datenabdeckung_prozent.
 CREATE OR REPLACE VIEW matching_score AS
 WITH gewichtung AS (
-    SELECT COUNT(*) AS anzahl_gewichte, SUM(gewicht) AS gesamtgewicht
+    SELECT COUNT(*) AS anzahl_gewichte, SUM(gewicht) AS gesamtgewicht,
+           (SELECT COUNT(*) FROM matching_kategorie) AS anzahl_kategorien
     FROM matching_gewichtung
 ), punkte AS (
     SELECT k.tier_id, k.interessent_id,
@@ -144,13 +185,14 @@ SELECT
     d.tier_id, d.interessent_id, d.tiername, d.pseudonym, d.tierstatus,
     d.tier_verfuegbar, d.interessent_aktiv, d.eignung, d.ausschlussgruende,
     d.offene_pruefungen,
-    (g.anzahl_gewichte = 9 AND g.gesamtgewicht = 100) AS gewichtung_vollstaendig,
+    d.entfernung_km,
+    (g.anzahl_gewichte = g.anzahl_kategorien AND g.gesamtgewicht = 100) AS gewichtung_vollstaendig,
     CASE WHEN d.eignung = 'ausgeschlossen' THEN 0
          WHEN d.eignung = 'pruefung_offen' THEN NULL
-         WHEN g.anzahl_gewichte = 9 AND g.gesamtgewicht = 100
+         WHEN g.anzahl_gewichte = g.anzahl_kategorien AND g.gesamtgewicht = 100
              THEN ROUND(100 * p.punkte / g.gesamtgewicht, 1)
          ELSE NULL END AS match_prozent,
-    CASE WHEN g.anzahl_gewichte = 9 AND g.gesamtgewicht = 100
+    CASE WHEN g.anzahl_gewichte = g.anzahl_kategorien AND g.gesamtgewicht = 100
          THEN ROUND(100 * p.erfasstes_gewicht / g.gesamtgewicht, 1)
          ELSE NULL END AS datenabdeckung_prozent
 FROM matching_entscheidung d
