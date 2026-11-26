@@ -21,9 +21,14 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Interessentenprofil ist nicht aktiv.';
     END IF;
 
-    IF (SELECT COUNT(*) FROM matching_gewichtung) <> 9
+    IF (SELECT COUNT(*) FROM matching_gewichtung) <> (SELECT COUNT(*) FROM matching_kategorie)
        OR (SELECT SUM(gewicht) FROM matching_gewichtung) <> 100 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Die neun Matching-Gewichte muessen vollstaendig sein und 100 ergeben.';
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Jede Matching-Kategorie braucht ein Gewicht und zusammen muessen sie 100 ergeben.';
+    END IF;
+
+    IF (SELECT COUNT(*) FROM matching_einstellung WHERE schluessel = 'mindestscore') <> 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Der Mindestscore muss in matching_einstellung hinterlegt sein.';
     END IF;
 
     SELECT tier_id, interessent_id, tiername, tierart, standort_id, standort,
