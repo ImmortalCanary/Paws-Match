@@ -1,0 +1,16 @@
+[theme]
+base = "light"
+# Warmes Salbeigruen (Vertrauen, Ruhe, Natuerlichkeit) statt des vorherigen gesaettigten
+# Orange - siehe team/decisions.md / Meeting-Feedback 2026-11-26 (P6-1). Creme/Beige als
+# neutrale Flaeche fuer Waerme, ohne zusaetzliche Akzentfarben einzufuehren.
+primaryColor = "#3D7A5F"
+backgroundColor = "#FAF7F0"
+secondaryBackgroundColor = "#F1ECE1"
+textColor = "#2B2B28"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+runOnSave = true
